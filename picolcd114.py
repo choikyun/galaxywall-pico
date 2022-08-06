@@ -17,13 +17,6 @@ CS = 9
 LCD_WIDTH = 240
 LCD_HEIGHT = 135
 
-# デフォルトのカラー
-COL_RED = 0xF800
-COL_GREEN = 0x07E0
-COL_BLUE = 0x001F
-COL_WHITE = 0xFFFF
-COL_BLACK = 0x0000
-
 # キー入力
 KEY_UP = 0b0000_1000
 KEY_DOWN = 0b0000_0100
@@ -33,8 +26,10 @@ KEY_A = 0b0010_0000
 KEY_B = 0b0001_0000
 KEY_CENTER = 0b1000_0000
 
+# LCDの明るさ
+brightness_table = (4095, 8191, 16383, 32767, 65535)
 
-class LCD:
+class LCD(framebuf.FrameBuffer):
     """Pico LCD 1.14inch の画面表示制御"""
 
     def __init__(self):
@@ -49,10 +44,14 @@ class LCD:
         self.dc = Pin(DC, Pin.OUT)
         self.dc(1)
 
+        # LCD用のバッファ RGB565
+        self.buf = bytearray(LCD_WIDTH * LCD_HEIGHT * 2)
+        super().__init__(self.buf, LCD_WIDTH, LCD_HEIGHT, framebuf.RGB565)
+
         # 液晶の明るさ
         self.pwm = PWM(Pin(BL))
         self.pwm.freq(1000)
-        self.brightness(32768 // 2)
+        self.brightness(2)
 
         self.init_display()
 
@@ -77,20 +76,20 @@ class LCD:
         self.rst(1)
 
         self.write_cmd(0x36)  # Memory Data Access Control
-        self.write_data(0x70)  # 0111_0000
+        self.write_data(0x70)
 
         self.write_cmd(0x3A)  # Interface pixel format
-        self.write_data(0x05)  # 0000_0101
+        self.write_data(0x05)
 
         self.write_cmd(0xB0)  # RAM Control
-        self.write_data(0x00)  # 0000_0000
-        self.write_data(0xF8)  # 1111_1000
+        self.write_data(0x00)
+        self.write_data(0xF8)
 
         self.write_cmd(0xBB)  # VCOM Setting
         self.write_data(0x19)
 
         self.write_cmd(0xC0)  # LCM Control
-        self.write_data(0x0C)  # 0010_1100
+        self.write_data(0x2C)
 
         self.write_cmd(0xC3)  # VRH Set
         self.write_data(0x12)
@@ -131,7 +130,7 @@ class LCD:
         self.write_cmd(0x11)  # Sleep out
         self.write_cmd(0x29)  # Display On
 
-    def show(self, buf):
+    def show(self):
         """バッファ転送"""
         self.write_cmd(0x2A)
         self.write_data(0x00)
@@ -150,11 +149,12 @@ class LCD:
         self.cs(1)
         self.dc(1)
         self.cs(0)
-        self.spi.write(buf)
+        self.spi.write(self.buf)
         self.cs(1)
 
-    def brightness(self, v=32767):
+    def brightness(self, v=2):
         """画面の明るさ"""
+        v = brightness_table[v]
         self.pwm.duty_u16(v)  # max 65535
 
 

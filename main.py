@@ -40,8 +40,8 @@ PANEL_MAX = 5
 COLOR_MAX = 6
 
 # スクロール
-SCROLL_WAIT = 4
-SCROLL_STOP = 30 # 一定時間停止
+SCROLL_WAIT = 4  # ウェイト
+SCROLL_STOP_TIME = 10  # 一定時間停止
 
 # 点滅
 FLASH_INTERVAL = 4
@@ -51,8 +51,8 @@ DELETE_DELAY = 25
 
 # キャラクタ
 CHR_SHIP = 0
-CHR_PANEL = 2
-CHR_SHOT = 8
+CHR_PANEL = 1
+CHR_SHOT = 7
 
 # イベント
 EV_CHECK_HIT = "event_check_hit_panel"
@@ -60,12 +60,23 @@ EV_CHECK_HIT = "event_check_hit_panel"
 EV_DELETE_LINE = "event_delete_line"
 """ライン消去"""
 
+# ステータス
+game_status = {'score': 0,
+                'hi': 0,
+                'lines': 6,
+                'brightness': 2}
+
 
 class MainScene(gl.Scene):
-    """メインシーン"""
+    """メイン"""
 
-    def __init__(self, id, stage, event_manager, key_input):
-        super().__init__(id, stage, event_manager, key_input)
+    def __init__(self, name, key_input):
+        # ステージ
+        stage = MainStage(0, "", 0, 0, 0, pl.LCD_WIDTH, pl.LCD_HEIGHT)
+        # イベントマネージャ
+        event_manager = gl.EventManager()
+        super().__init__(name, stage, event_manager, key_input)
+
         # ステージにシーンをセット
         self.stage.scene = self
 
@@ -96,6 +107,34 @@ class MainScene(gl.Scene):
     ### イベントリスナー
 
 
+class PauseScene(gl.Scene):
+    """ポーズ
+    ・スコア表示
+    ・LCD輝度調整
+    """
+
+    def __init__(self, name, key_input):
+        # ステージ
+        stage = MainStage(0, "", 0, 0, 0, pl.LCD_WIDTH, pl.LCD_HEIGHT)
+        # イベントマネージャ
+        event_manager = gl.EventManager()
+        super().__init__(name, stage, event_manager, key_input)
+
+        # ステージにシーンをセット
+        self.stage.scene = self
+        # スプライト作成
+
+    def enter(self):
+        super().enter()
+
+    def action(self):
+        while True:
+            super().action()
+
+    def leave(self):
+        super().leave
+
+
 class MainStage(gl.Stage):
     """ステージ"""
 
@@ -115,21 +154,19 @@ class Ship(gl.Sprite):
     def __init__(self, parent, chr_no, name, x, y, z, w, h):
         super().__init__(parent, chr_no, name, x, y, z, w, h, 1)
 
-        self.base_y = y  # イーズ前のY座標
-        self.y_delta = 0  # Y座標変化量
-        self.y_current = 0  # Y座標 移動中のフレーム
         self.fire_panel_num = 0  # 現在の発射数
+        self.move_anime = gl.Anime(self.scene.event, ease.out_elastic)  # 移動アニメ
 
     def enter(self):
-        """初期化"""
         super().enter()
         # イベントリスナー登録
-        self.stage.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
+        self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
+        self.move_anime.attach()  # アニメ有効化
 
     def leave(self):
-        """終了処理"""
         # イベントリスナー削除
-        self.stage.scene.event.remove_all_listner(self)
+        self.scene.event.remove_all_listner(self)
+        self.move_anime.detach()  # アニメ無効化
         super().leave()
 
     def action(self):
@@ -159,18 +196,26 @@ class Ship(gl.Sprite):
     def event_enter_frame(self, type, sender, option):
         """フレーム毎"""
         # 上下移動
-        if option.repeat & pl.KEY_UP and self.y > 0 and self.y_delta == 0:
-            self.y_delta = -SHIP_MOVE_STEP
-            self.y_current = 0
-            self.base_y = self.y
+        if (
+            option.repeat & pl.KEY_UP
+            and self.y > 0
+            and self.move_anime.is_playing == False
+        ):
+            # アニメセット
+            self.move_anime.start = self.y
+            self.move_anime.delta = -SHIP_MOVE_STEP
+            self.move_anime.total_frame = SHIP_MOVE_FRAME_MAX
+            self.move_anime.play()
         if (
             option.repeat & pl.KEY_DOWN
             and self.y < SHIP_MOVE_LIMIT
-            and self.y_delta == 0
+            and self.move_anime.is_playing == False
         ):
-            self.y_delta = SHIP_MOVE_STEP
-            self.y_current = 0
-            self.base_y = self.y
+            # アニメセット
+            self.move_anime.start = self.y
+            self.move_anime.delta = SHIP_MOVE_STEP
+            self.move_anime.total_frame = SHIP_MOVE_FRAME_MAX
+            self.move_anime.play()
 
         if option.repeat & pl.KEY_LEFT:
             pass
@@ -181,17 +226,9 @@ class Ship(gl.Sprite):
         if option.push & pl.KEY_B:
             self.__fire_panel()
 
-        # イージング移動
-        if self.y_delta != 0:
-            self.y = int(
-                ease.out_elastic(
-                    self.y_current, self.base_y, self.y_delta, SHIP_MOVE_FRAME_MAX
-                )
-            )
-            if self.y_current == SHIP_MOVE_FRAME_MAX:
-                self.y_delta = 0  # イーズ終了
-            else:
-                self.y_current += 1
+        # 移動中
+        if self.move_anime.is_playing:
+            self.y = int(self.move_anime.value)
 
 
 class FieldMap:
@@ -199,12 +236,14 @@ class FieldMap:
 
     Attributes:
         stage (Stage): ステージ（スプライトのルート）
+        scene (Scene): ステージの所属しているシーン
         w (int): 幅
         h (int): 高さ
     """
 
     def __init__(self, stage, w, h):
         self.stage = stage
+        self.scene = stage.scene
         # フィールドマップ パネルの配置 2次元マップ
         self.fieldmap = [
             [None for i in range(FIELD_WIDTH)] for j in range(FIELD_HEIGHT)
@@ -214,12 +253,13 @@ class FieldMap:
         # スクロールのオフセット ドット単位で移動するため
         self.scroll_offset = PANEL_OFFSET_INIT
         self.scroll_wait = SCROLL_WAIT
+        self.scroll_wait_def = SCROLL_WAIT  # スクロールのデフォルト値
         # カラー
         self.current_color = 0
         # イベントリスナー登録
-        self.stage.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
-        self.stage.scene.event.listners.append((EV_CHECK_HIT, self))  # 当たり判定
-        self.stage.scene.event.listners.append((EV_DELETE_LINE, self))  # ライン消去
+        self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
+        self.scene.event.listners.append((EV_CHECK_HIT, self))  # 当たり判定
+        self.scene.event.listners.append((EV_DELETE_LINE, self))  # ライン消去
 
     def set_new_line(self, x=FIELD_WIDTH - 1):
         """新しいラインを作成"""
@@ -239,6 +279,8 @@ class FieldMap:
         """新しいパネルをセット"""
         sp_x = x * PANEL_WIDTH
         sp_y = y * (PANEL_HEIGHT + 2)
+
+        color = 3
 
         self.fieldmap[y][x] = Panel(
             self.stage,
@@ -274,7 +316,9 @@ class FieldMap:
         for y in range(FIELD_HEIGHT):
             self.fieldmap[y][x].flash = True
         # ライン消去のイベント
-        self.stage.scene.event.post([EV_DELETE_LINE, DELETE_DELAY, self, self.fieldmap[0][x]])
+        self.scene.event.post([EV_DELETE_LINE, DELETE_DELAY, self, self.fieldmap[0][x]])
+        # 一定時間停止
+        self.scroll_wait += SCROLL_STOP_TIME
 
     def __scroll_map(self):
         """フィールドマップとスプライトの更新"""
@@ -289,23 +333,24 @@ class FieldMap:
         """毎フレーム"""
         # スクロール
         self.scroll_wait -= 1
-        if self.scroll_wait != 0:
-            return
-        self.scroll_wait = SCROLL_WAIT
-
-        self.scroll_offset -= 1
-        if self.scroll_offset == 0:
-            self.scroll_offset = PANEL_OFFSET
-            # マップを更新（スクロール）
-            self.__scroll_map()
-            # 新しいパネルをセット
-            self.set_new_line()
+        if self.scroll_wait == 0:
+            self.scroll_wait = self.scroll_wait_def
+            # オフセット更新
+            self.scroll_offset -= 1
+            if self.scroll_offset == 0:
+                self.scroll_offset = PANEL_OFFSET
+                # マップを更新（スクロール）
+                self.__scroll_map()
+                # 新しいパネルをセット
+                self.set_new_line()
 
         # パネルスプライトを更新
         for j in range(FIELD_HEIGHT):
             for i in range(FIELD_WIDTH):
                 if self.fieldmap[j][i] != None:
-                    self.fieldmap[j][i].x = self.fieldmap[j][i].base_x + self.scroll_offset
+                    self.fieldmap[j][i].x = (
+                        self.fieldmap[j][i].base_x + self.scroll_offset
+                    )
 
     def event_check_hit_panel(self, type, sender, option):
         """弾とパネルの当たり判定"""
@@ -320,13 +365,13 @@ class FieldMap:
     def event_delete_line(self, type, sender, option):
         """ライン消去"""
         for pos in range(FIELD_WIDTH):
-            if self.fieldmap[0][pos] is option: # X座標を取得
+            if self.fieldmap[0][pos] is option:  # X座標を取得
                 break
 
         for y in range(FIELD_HEIGHT):
             self.fieldmap[y][pos].leave()
             self.fieldmap[y][pos] = None
-        
+
         # 詰める
         for y in range(FIELD_HEIGHT):
             for x in range(pos, 0, -1):
@@ -378,10 +423,10 @@ class ShotPanel(gl.Sprite):
 
     def enter(self):
         super().enter()
-        self.stage.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
+        self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
 
     def leave(self):
-        self.stage.scene.event.remove_all_listner(self)
+        self.scene.event.remove_all_listner(self)
         super().leave()
 
     def action(self):
@@ -393,15 +438,12 @@ class ShotPanel(gl.Sprite):
         self.x += SHOT_SPEED
         # 当たり判定イベント
         if self.x % PANEL_WIDTH == 0:
-            self.parent.scene.event.post(
-                [EV_CHECK_HIT, 0, self, self.parent.scene.ship]
-            )  # オプションは自機
+            self.scene.event.post([EV_CHECK_HIT, 0, self, self.scene.ship])  # オプションは自機
 
 
 # スプライト用イメージバッファ生成
 chr_data = [
     data.ship_0,  # 自機
-    data.ship_1,
     data.p_0,  # パネル
     data.p_1,
     data.p_2,
@@ -417,18 +459,15 @@ chr_data = [
 ]
 gl.create_image_buffers(PANEL_WIDTH, PANEL_HEIGHT, data.palet565, chr_data)
 
-# ステージ
-stage = MainStage(0, "", 0, 0, 0, pl.LCD_WIDTH, pl.LCD_HEIGHT)
-# イベントマネージャ
-event_manager = gl.EventManager()
-# キー入力
-key = pl.InputKey()
+# キー入力 シーン共通
+key_global = pl.InputKey()
 
 # 各シーンの作成
-main = MainScene("main", stage, event_manager, key)  # ゲーム本編
-scenes = [main]
+main = MainScene("main", key_global)  # ゲーム本編
+pause = PauseScene("pause", key_global)
+scenes = [main, pause]
 
 # ディレクターの作成
-director = gl.Director(scenes, main)
+director = gl.Director(scenes)
 # シーン実行
-director.action()
+director.start("main")

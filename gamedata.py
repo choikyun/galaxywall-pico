@@ -5,18 +5,18 @@ __author__ = "Choi Gyun 2022"
 
 # BGR565 パレット
 palet565 = [
-    0b00000_000000_11111,  # red
-    0b00000_011111_11111,
-    0b00000_111111_11111,  # yellow
-    0b00000_111111_01111,
-    0b00000_111111_00000,  # green
-    0b01111_111111_00000,
-    0b11111_111111_00000,  # cyan
+    0b11111_000000_00000,  # red
     0b11111_011111_00000,
-    0b11111_000000_00000,  # blue
-    0b11111_000000_01111,
-    0b11111_000000_11111,  # magenta
+    0b11111_111111_00000,  # yellow
+    0b01111_111111_00000,
+    0b00000_111111_00000,  # green
+    0b00000_111111_01111,
+    0b00000_111111_11111,  # cyan
+    0b00000_011111_11111,
+    0b00000_000000_11111,  # blue
     0b01111_000000_11111,
+    0b11111_000000_11111,  # magenta
+    0b11111_000000_01111,
     0xFFFF,  # white
     0xBDF7,  #
     0x7BEF,  #
@@ -35,18 +35,6 @@ ship_0 = (
     b"\xdd\xdd\xfd\xff\xff"
     b"\xdd\xdd\xfd\xff\xff"
     b"\xdd\xdd\xdd\xdd\xff"
-)
-ship_1 = (
-    b"\xcf\xcc\xcc\xcc\xff"
-    b"\xcf\xcc\xfc\xff\xff"
-    b"\xcf\xcc\xfc\xff\xff"
-    b"\xcf\xcc\xcc\xcc\xff"
-    b"\xcf\xcc\xcc\xcc\xcc"
-    b"\xdf\xdd\xdd\xdd\xdd"
-    b"\xdf\xdd\xdd\xdd\xff"
-    b"\xdf\xdd\xfd\xff\xff"
-    b"\xdf\xdd\xfd\xff\xff"
-    b"\xdf\xdd\xdd\xdd\xff"
 )
 # 迫りくるパネル 20x20
 p_0 = (
@@ -134,7 +122,6 @@ s_0 = (
     b"\xff\xff\xff\xff\xff"
     b"\xff\xff\xff\xff\xff"
 )
-
 s_1 = (
     b"\xff\xff\xff\xff\xff"
     b"\xff\xff\xff\xff\xff"
@@ -147,7 +134,6 @@ s_1 = (
     b"\xff\xff\xff\xff\xff"
     b"\xff\xff\xff\xff\xff"
 )
-
 s_2 = (
     b"\xff\xff\xff\xff\xff"
     b"\xff\xff\xff\xff\xff"
@@ -160,7 +146,6 @@ s_2 = (
     b"\xff\xff\xff\xff\xff"
     b"\xff\xff\xff\xff\xff"
 )
-
 s_3 = (
     b"\xff\xff\xff\xff\xff"
     b"\xff\xff\xff\xff\xff"
@@ -173,7 +158,6 @@ s_3 = (
     b"\xff\xff\xff\xff\xff"
     b"\xff\xff\xff\xff\xff"
 )
-
 s_4 = (
     b"\xff\xff\xff\xff\xff"
     b"\xff\xff\xff\xff\xff"
@@ -186,7 +170,6 @@ s_4 = (
     b"\xff\xff\xff\xff\xff"
     b"\xff\xff\xff\xff\xff"
 )
-
 s_5 = (
     b"\xff\xff\xff\xff\xff"
     b"\xff\xff\xff\xff\xff"
