@@ -60,12 +60,6 @@ EV_CHECK_HIT = "event_check_hit_panel"
 EV_DELETE_LINE = "event_delete_line"
 """ライン消去"""
 
-# ステータス
-game_status = {'score': 0,
-                'hi': 0,
-                'lines': 6,
-                'brightness': 2}
-
 
 class MainScene(gl.Scene):
     """メイン"""
@@ -280,8 +274,6 @@ class FieldMap:
         sp_x = x * PANEL_WIDTH
         sp_y = y * (PANEL_HEIGHT + 2)
 
-        color = 3
-
         self.fieldmap[y][x] = Panel(
             self.stage,
             color + CHR_PANEL,
@@ -458,6 +450,12 @@ chr_data = [
     data.s_5,
 ]
 gl.create_image_buffers(PANEL_WIDTH, PANEL_HEIGHT, data.palet565, chr_data)
+
+# ステータスをロード
+game_status = gl.load_status()
+if game_status is None:
+    # デフォルト
+    game_status = {'score': 0, 'hi':0, 'lines': 6, 'brightness': 2}
 
 # キー入力 シーン共通
 key_global = pl.InputKey()
