@@ -15,12 +15,12 @@ SHIP_WIDTH = 20
 SHIP_HEIGHT = 20
 SHIP_MOVE_STEP = SHIP_HEIGHT + 2
 SHIP_MOVE_LIMIT = SHIP_MOVE_STEP * 5
-SHIP_MOVE_FRAME_MAX = 10  # 移動にかかるフレーム数
+SHIP_MOVE_FRAME_MAX = 8  # 移動にかかるフレーム数
 
 # 弾
 SHOT_WIDTH = 10
 SHOT_HEIGHT = 10
-SHOT_PANEL_MAX = 3
+SHOT_PANEL_MAX = 2
 SHOT_SPEED = 10
 
 # フィールド
@@ -34,13 +34,14 @@ LEVEL_STEP = 4
 # パネル
 PANEL_WIDTH = 20
 PANEL_HEIGHT = 20
-PANEL_OFFSET = 20
-PANEL_OFFSET_INIT = 20
+PANEL_BLANK_Y = 2
+PANEL_OFFSET = 19
+PANEL_OFFSET_INIT = 19
 PANEL_MAX = 5
 COLOR_MAX = 6
 
 # スクロール
-SCROLL_WAIT = 4  # ウェイト
+SCROLL_WAIT = 8  # ウェイト
 SCROLL_STOP_TIME = 10  # 一定時間停止
 
 # 点滅
@@ -93,6 +94,12 @@ class MainScene(gl.Scene):
         """フレーム毎のアクション 30FPS"""
         while True:
             super().action()
+
+        # ポース
+        if self.active:
+            if self.key.push & pl.KEY_A:
+                pass
+
 
     def leave(self):
         """終了処理"""
@@ -149,7 +156,7 @@ class Ship(gl.Sprite):
         super().__init__(parent, chr_no, name, x, y, z, w, h, 1)
 
         self.fire_panel_num = 0  # 現在の発射数
-        self.move_anime = gl.Anime(self.scene.event, ease.out_elastic)  # 移動アニメ
+        self.move_anime = gl.Anime(self.scene.event, ease.out_quart)  # 移動アニメ
 
     def enter(self):
         super().enter()
@@ -176,7 +183,7 @@ class Ship(gl.Sprite):
         shot = ShotPanel(
             self.stage,
             color + CHR_SHOT,
-            "shot",
+            "shot" + str(self.fire_panel_num),
             self.x,
             self.y,
             1,
@@ -193,7 +200,7 @@ class Ship(gl.Sprite):
         if (
             option.repeat & pl.KEY_UP
             and self.y > 0
-            and self.move_anime.is_playing == False
+            and not self.move_anime.is_playing
         ):
             # アニメセット
             self.move_anime.start = self.y
@@ -203,7 +210,7 @@ class Ship(gl.Sprite):
         if (
             option.repeat & pl.KEY_DOWN
             and self.y < SHIP_MOVE_LIMIT
-            and self.move_anime.is_playing == False
+            and not self.move_anime.is_playing
         ):
             # アニメセット
             self.move_anime.start = self.y
@@ -217,7 +224,7 @@ class Ship(gl.Sprite):
             pass
 
         # 弾発射
-        if option.push & pl.KEY_B:
+        if option.push & pl.KEY_B and not self.move_anime.is_playing:
             self.__fire_panel()
 
         # 移動中
@@ -250,9 +257,9 @@ class FieldMap:
         self.scroll_wait_def = SCROLL_WAIT  # スクロールのデフォルト値
         # カラー
         self.current_color = 0
-        # イベントリスナー登録
+        # イベントリスナー登録（順番注意）
+        self.scene.event.listners.append((EV_CHECK_HIT, self))  # 当たり判定 スクロールより先
         self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
-        self.scene.event.listners.append((EV_CHECK_HIT, self))  # 当たり判定
         self.scene.event.listners.append((EV_DELETE_LINE, self))  # ライン消去
 
     def set_new_line(self, x=FIELD_WIDTH - 1):
@@ -272,7 +279,13 @@ class FieldMap:
     def set_new_panel(self, x, y, color):
         """新しいパネルをセット"""
         sp_x = x * PANEL_WIDTH
-        sp_y = y * (PANEL_HEIGHT + 2)
+        sp_y = y * (PANEL_HEIGHT + PANEL_BLANK_Y)
+
+        #debug 
+        if self.fieldmap[y][x] is not None:
+            print('x:%d y:%d' %(x, y))
+            print('ofset:%d' %self.scroll_offset)
+        #debig
 
         self.fieldmap[y][x] = Panel(
             self.stage,
@@ -302,7 +315,7 @@ class FieldMap:
     def __check_line(self, x):
         """1列そろったか"""
         for y in range(FIELD_HEIGHT):
-            if self.fieldmap[y][x] == None:
+            if self.fieldmap[y][x] is None:
                 return
         # そろった
         for y in range(FIELD_HEIGHT):
@@ -314,11 +327,11 @@ class FieldMap:
 
     def __scroll_map(self):
         """フィールドマップとスプライトの更新"""
-        for j in range(FIELD_HEIGHT):
-            for i in range(FIELD_WIDTH - 1):
-                self.fieldmap[j][i] = self.fieldmap[j][i + 1]  # 1キャラクタ分スクロール
-                if self.fieldmap[j][i] != None:
-                    self.fieldmap[j][i].base_x -= PANEL_WIDTH  # ベース座標の更新
+        for y in range(FIELD_HEIGHT):
+            for x in range(FIELD_WIDTH - 1):
+                self.fieldmap[y][x] = self.fieldmap[y][x + 1]  # 1キャラクタ分スクロール
+                if self.fieldmap[y][x] is not None:
+                    self.fieldmap[y][x].base_x -= PANEL_WIDTH  # ベース座標の更新
 
     ### イベントリスナー
     def event_enter_frame(self, type, sender, option):
@@ -329,7 +342,7 @@ class FieldMap:
             self.scroll_wait = self.scroll_wait_def
             # オフセット更新
             self.scroll_offset -= 1
-            if self.scroll_offset == 0:
+            if self.scroll_offset < 0:
                 self.scroll_offset = PANEL_OFFSET
                 # マップを更新（スクロール）
                 self.__scroll_map()
@@ -337,18 +350,18 @@ class FieldMap:
                 self.set_new_line()
 
         # パネルスプライトを更新
-        for j in range(FIELD_HEIGHT):
-            for i in range(FIELD_WIDTH):
-                if self.fieldmap[j][i] != None:
-                    self.fieldmap[j][i].x = (
-                        self.fieldmap[j][i].base_x + self.scroll_offset
+        for y in range(FIELD_HEIGHT):
+            for x in range(FIELD_WIDTH):
+                if self.fieldmap[y][x] is not None:
+                    self.fieldmap[y][x].x = (
+                        self.fieldmap[y][x].base_x + self.scroll_offset
                     )
 
     def event_check_hit_panel(self, type, sender, option):
         """弾とパネルの当たり判定"""
         x = sender.x // PANEL_WIDTH
-        y = sender.y // PANEL_HEIGHT
-        if x == FIELD_WIDTH - 1 or self.fieldmap[y][x + 1] != None:
+        y = sender.y // (PANEL_HEIGHT + PANEL_BLANK_Y)
+        if x == (FIELD_WIDTH - 1) or self.fieldmap[y][x + 1] is not None:
             self.set_new_panel(x, y, sender.color)  # 弾を消してブロック生成
             sender.leave()  # 弾削除
             option.fire_panel_num -= 1
@@ -368,11 +381,11 @@ class FieldMap:
         for y in range(FIELD_HEIGHT):
             for x in range(pos, 0, -1):
                 self.fieldmap[y][x] = self.fieldmap[y][x - 1]
-                if self.fieldmap[y][x] != None:
+                if self.fieldmap[y][x] is not None:
                     self.fieldmap[y][x].base_x += PANEL_WIDTH
         # 先頭は空
         for y in range(FIELD_HEIGHT):
-            if self.fieldmap[y][0] != None:
+            if self.fieldmap[y][0] is not None:
                 self.fieldmap[y][0].leave()
                 self.fieldmap[y][0] = None
 
