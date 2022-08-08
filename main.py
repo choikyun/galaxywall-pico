@@ -79,7 +79,9 @@ class MainScene(gl.Scene):
         self.ship = Ship(
             stage, CHR_SHIP, "SHIP", 0, 0, 1, SHIP_WIDTH, SHIP_HEIGHT
         )  # 自機
-        self.fieldmap = FieldMap(stage, FIELD_WIDTH, FIELD_HEIGHT)  # フィールド
+        
+        # フィールド作成
+        self.fieldmap = FieldMap(stage, FIELD_WIDTH, FIELD_HEIGHT) 
 
     def enter(self):
         """ゲームの初期化処理"""
@@ -257,8 +259,8 @@ class FieldMap:
         self.scroll_wait_def = SCROLL_WAIT  # スクロールのデフォルト値
         # カラー
         self.current_color = 0
-        # イベントリスナー登録（順番注意）
-        self.scene.event.listners.append((EV_CHECK_HIT, self))  # 当たり判定 スクロールより先
+        # イベントリスナー登録
+        #self.scene.event.listners.append((EV_CHECK_HIT, self))  # 当たり判定
         self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
         self.scene.event.listners.append((EV_DELETE_LINE, self))  # ライン消去
 
@@ -299,6 +301,16 @@ class FieldMap:
         )
         self.fieldmap[y][x].enter()
 
+    def check_hit_panel(self, shot_panel):
+        """弾とパネルの当たり判定"""
+        x = shot_panel.x // PANEL_WIDTH
+        y = shot_panel.y // (PANEL_HEIGHT + PANEL_BLANK_Y)
+        if x == (FIELD_WIDTH - 1) or self.fieldmap[y][x] is not None:
+            self.set_new_panel(x - 1, y, shot_panel.color) # 弾を消してブロック生成
+            shot_panel.leave()  # 弾削除
+            self.scene.fire_panel_num -= 1
+            self.__check_line(x)  # ライン消去判定
+
     def __clear_line(self, pos_x):
         """1列削除"""
         for i in range(FIELD_HEIGHT):
@@ -321,7 +333,7 @@ class FieldMap:
         for y in range(FIELD_HEIGHT):
             self.fieldmap[y][x].flash = True
         # ライン消去のイベント
-        self.scene.event.post([EV_DELETE_LINE, DELETE_DELAY, self, self.fieldmap[0][x]])
+        self.scene.event.post([EV_DELETE_LINE, gl.EV_PRIORITY_MID, DELETE_DELAY, self, self.fieldmap[0][x]])
         # 一定時間停止
         self.scroll_wait += SCROLL_STOP_TIME
 
@@ -356,16 +368,6 @@ class FieldMap:
                     self.fieldmap[y][x].x = (
                         self.fieldmap[y][x].base_x + self.scroll_offset
                     )
-
-    def event_check_hit_panel(self, type, sender, option):
-        """弾とパネルの当たり判定"""
-        x = sender.x // PANEL_WIDTH
-        y = sender.y // (PANEL_HEIGHT + PANEL_BLANK_Y)
-        if x == (FIELD_WIDTH - 1) or self.fieldmap[y][x + 1] is not None:
-            self.set_new_panel(x, y, sender.color)  # 弾を消してブロック生成
-            sender.leave()  # 弾削除
-            option.fire_panel_num -= 1
-            self.__check_line(x)  # ライン消去判定
 
     def event_delete_line(self, type, sender, option):
         """ライン消去"""
@@ -443,7 +445,9 @@ class ShotPanel(gl.Sprite):
         self.x += SHOT_SPEED
         # 当たり判定イベント
         if self.x % PANEL_WIDTH == 0:
-            self.scene.event.post([EV_CHECK_HIT, 0, self, self.scene.ship])  # オプションは自機
+            #self.scene.event.post([EV_CHECK_HIT, gl.EV_PRIORITY_HI, self, self.scene.ship])  # オプションは自機
+            # イベントを出さずにここで当たり判定にする？
+            self.scene.fieldmap.check_hit_panel(self)
 
 
 # スプライト用イメージバッファ生成

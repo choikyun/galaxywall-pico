@@ -37,6 +37,11 @@ EV_SCENE_START = "event_scene_start"
 EV_SCENE_END = "event_scene_end"
 """シーン終了"""
 
+# イベント プライオリティ
+EV_PRIORITY_HI = 10
+EV_PRIORITY_MID = 50
+EV_PRIORITY_LOW = 100 
+
 DEFAULT_FPS = 30
 """デフォルトFPS"""
 
@@ -443,7 +448,7 @@ class EventManager:
         """イベントをポスト
 
         Params:
-            event (list): 0:type 1:delay 2:sender 3:optiion
+            event (list): 0:type 1:priority 2:delay 3:sender 4:optiion
         Returns:
             bool: 追加できたか.
         """
@@ -452,12 +457,17 @@ class EventManager:
             self.queue.append(event)
             return
 
-        # delay昇順・新規は後ろに追加
+        # delay, priority 昇順・新規は後ろに追加
         for i, e in enumerate((self.queue)):
-            if event[1] < e[1]:
-                self.queue.insert(i, event)
-                return
-
+            if event[2] > e[2]:
+                continue
+            if event[2] == e[2] and event[1] >= e[1]:
+                continue
+            # この位置に追加
+            self.queue.insert(i, event)
+            return
+        
+        # 最後に追加
         self.queue.append(event)
 
     def clear_queue(self):
@@ -537,16 +547,17 @@ class Scene:
         self.stage = stage
         self.event = event_manager
         self.key = key
-        # FPS用
+        # FPS関連
         self.fps_ticks = utime.ticks_ms()
         self.fps = DEFAULT_FPS
         self.fps_interval = 1000 // self.fps
         self.active = False  # 現在シーンがアクティブか
+        self.frame_count = 0 # 経過フレーム
 
     def enter(self):
         """入場"""
         # 初回イベント
-        self.event.post([EV_ENTER_FRAME, 0, self, self.key])
+        self.event.post([EV_ENTER_FRAME, EV_PRIORITY_MID, 0, self, self.key])
 
     def action(self):
         """実行"""
@@ -556,6 +567,7 @@ class Scene:
             return
         self.fps_ticks = t
         self.active = True
+        self.frame_count += 1
 
         # キースキャン
         self.key.scan()
@@ -567,7 +579,7 @@ class Scene:
         self.stage.show()
 
         # enter_frame イベントは毎フレーム発生
-        self.event.post([EV_ENTER_FRAME, 0, self, self.key])
+        self.event.post([EV_ENTER_FRAME, EV_PRIORITY_MID, 0, self, self.key])
 
     def leave(self):
         """終了処理"""
