@@ -40,7 +40,7 @@ EV_SCENE_END = "event_scene_end"
 # イベント プライオリティ
 EV_PRIORITY_HI = 10
 EV_PRIORITY_MID = 50
-EV_PRIORITY_LOW = 100 
+EV_PRIORITY_LOW = 100
 
 DEFAULT_FPS = 30
 """デフォルトFPS"""
@@ -57,15 +57,16 @@ lcd = pl.LCD()
 def load_status():
     """ステータスロード"""
     try:
-        d = json.load(io.open("status.dat", "r"))
+        d = json.load(io.open("status.json", "r"))
     except:
         d = None
     return d
 
+
 def save_status(d):
     """ステータスセーブ"""
     try:
-        json.dump(d, io.open("status.dat", "w"))
+        json.dump(d, io.open("status.json", "w"))
     except:
         pass
 
@@ -173,10 +174,7 @@ class Sprite:
 
             # 現在のフレームを描画
             frame_buffer.blit(
-                image_buffers[self.chr_no + self.frame_index],
-                x,
-                y,
-                bg_color
+                image_buffers[self.chr_no + self.frame_index], x, y, bg_color
             )
 
     def action(self):
@@ -449,8 +447,6 @@ class EventManager:
 
         Params:
             event (list): 0:type 1:priority 2:delay 3:sender 4:optiion
-        Returns:
-            bool: 追加できたか.
         """
         # キューが空
         if len(self.queue) == 0:
@@ -466,7 +462,7 @@ class EventManager:
             # この位置に追加
             self.queue.insert(i, event)
             return
-        
+
         # 最後に追加
         self.queue.append(event)
 
@@ -501,24 +497,24 @@ class EventManager:
     def fire(self):
         """イベントを処理"""
         while True:
-            if len(self.queue) == 0 or self.queue[0][1] != 0:
+            if len(self.queue) == 0 or self.queue[0][2] != 0:
                 break
             self.__call_listners(self.queue.pop(0))  # 遅い
 
         # delay 更新
         for e in self.queue:
-            e[1] -= 1
+            e[2] -= 1
 
     def __call_listners(self, event):
         """イベントリスナー呼び出し
 
         Params:
-            event (tuple): 0:type 1:delay 2:sender 3:optiion
+            event (list): 0:type 1:priority 2:delay 3:sender 4:optiion
         """
         for listner in self.listners:
             if event[0] == listner[0]:
                 # コールバック呼び出し
-                getattr(listner[1], event[0])(event[0], event[2], event[3])
+                getattr(listner[1], event[0])(event[0], event[3], event[4])
 
 
 class Scene:
@@ -552,7 +548,8 @@ class Scene:
         self.fps = DEFAULT_FPS
         self.fps_interval = 1000 // self.fps
         self.active = False  # 現在シーンがアクティブか
-        self.frame_count = 0 # 経過フレーム
+        self.frame_count = 0  # 経過フレーム
+        self.director = None
 
     def enter(self):
         """入場"""
@@ -601,33 +598,54 @@ class Director:
     Attributes:
         scene_list (list): 使用するシーンのリスト
         scene_stack (list): シーンのスタック
+        is_Playing (bool): 実行中か
     """
 
     def __init__(self, scene_list):
         self.scene_list = scene_list
         self.scene_stack = []
+        self.is_playing = False
+        # シーンにディレクターをセット
+        for s in self.scene_list:
+            s.director = self
 
-    def start(self, scene_name):
-        """カレントシーンの実行
-
+    def push(self, scene_name):
+        """新しいシーンをプッシュ
         Params:
             scene_name (str): シーン名
         """
+        self.is_playing = False # 一時停止
         s = self.__get_scene(scene_name)  # 名前でシーン取得
+        if s is None:
+            return False
         self.scene_stack.append(s)
         s.enter()
-        s.action()
+        return True
 
-    def stop(self):
-        """カレントシーンの終了"""
+    def play(self):
+        """カレントシーンの実行
+        カレントシーンをループ再生
+        """
         if not self.scene_stack:
             return
+
+        while True:
+            self.is_playing = True
+            s = self.scene_stack[-1]
+            while self.is_playing:
+                s.action()
+
+    def pop(self):
+        """カレントシーンのポップ（終了）"""
+        if not self.scene_stack:
+            return False
+        self.is_playing = False
         s = self.scene_stack.pop()
         s.leave()  # シーン終了
+        return True
 
     def __get_scene(self, scene_name):
         """シーンリストからシーンを取得
-
         Params:
             scene_name (str): シーン名
         Returns:
@@ -638,11 +656,3 @@ class Director:
                 return s
 
         return None
-
-
-class Status:
-    """ゲーム・環境のステータス"""
-
-
-    def __init__(self):
-        pass
