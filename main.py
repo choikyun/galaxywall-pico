@@ -54,6 +54,22 @@ DELETE_DELAY = 30
 CHR_SHIP = 0
 CHR_PANEL = 1
 CHR_SHOT = 7
+CHR_LV = 13
+CHR_HI = 14
+CHR_SCORE = 15
+CHR_LINES = 16
+CHR_INFO_A = 17
+CHR_INFO_BRIGHT = 18
+
+# ポーズ画面
+LV_W = 32
+LV_H = 14
+SCORE_W = 80
+SCORE_H = 14
+HI_W = 28
+HI_H = 14
+LINES_W = 76
+LINES_H = 14
 
 # イベント
 EV_CHECK_HIT = "event_check_hit_panel"
@@ -123,9 +139,15 @@ class PauseScene(gl.Scene):
         # ステージにシーンをセット
         self.stage.scene = self
         # スプライト作成
+        self.lv = Sprite(stage, CHR_LV, "lv", 40, 4, 1, LV_W, LV_H)
+        self.hi = Sprite(stage, CHR_HI "hi", 40, 24, 1, SCORE_W, SCORE_H)
+        self.score = Sprite(stage, CHR_SCORE, "score", 40, 44, 1, SCORE_W, SCORE_H)
+        self.lines = Sprite(stage, CHR_LINES, "lines", 40, 64, 1, SCORE_W, SCORE_H)
+
 
     def enter(self):
         super().enter()
+
 
     def action(self):
         super().action()
@@ -462,21 +484,29 @@ class ShotPanel(gl.Sprite):
 
 # スプライト用イメージバッファ生成
 chr_data = [
-    data.ship_0,  # 自機
-    data.p_0,  # パネル
-    data.p_1,
-    data.p_2,
-    data.p_3,
-    data.p_4,
-    data.p_5,
-    data.s_0,  # 弾
-    data.s_1,
-    data.s_2,
-    data.s_3,
-    data.s_4,
-    data.s_5,
+    (data.ship_0, 20, 20),  # 自機
+    (data.p_0, 20, 20),  # パネル
+    (data.p_1, 20, 20),
+    (data.p_2, 20, 20),
+    (data.p_3, 20, 20),
+    (data.p_4, 20, 20),
+    (data.p_5, 20, 20),
+    (data.s_0, 20, 20), # 弾
+    (data.s_1, 20, 20),
+    (data.s_2, 20, 20),
+    (data.s_3, 20, 20),
+    (data.s_4, 20, 20),
+    (data.s_5, 20, 20)
+    (data.lv, 32 ,14),
+    (data.hi, 28, 14),
+    (data.score, 80, 14),
+    (data.lines, 76, 14),
+    (data.info_a, 44, 11),
+    (data.info_bright, 44, 12)
 ]
-gl.create_image_buffers(PANEL_WIDTH, PANEL_HEIGHT, data.palet565, chr_data)
+
+# イメージバッファ生成
+gl.create_image_buffers(data.palet565, chr_data)
 
 # ステータスをロード
 game_status = gl.load_status()

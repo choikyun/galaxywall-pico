@@ -71,26 +71,27 @@ def save_status(d):
         pass
 
 
-def create_image_buffers(w, h, palet, index_images):
+def create_image_buffers(palet, index_images):
     """インデックスカラー から RGB565 のフレームバッファを作成
     スプライトが参照するイメージバッファ（RGB565）をキャラクタデータから作成する.
     LCDが小さいので縦横サイズは2倍にする.
 
     Params:
-        w (int): 実際に描画する幅
-        h (int): 実際に描画する高さ
         palet (list): パレット
-        index_images (list): 画像データ（インデックスカラー）のリスト
+        index_images (list): 画像データ（インデックスカラー, w, h のタプル）のリスト
         1インデックスは 2x2 ピクセル
     """
-    for img in index_images:
+    for i in index_images:
+        image = i[0]
+        w = i[1]
+        h = i[2]
         buf565 = buf.FrameBuffer(bytearray(w * h * 2), w, h, buf.RGB565)
         # バッファに描画
         pos = 0
         for y in range(0, h, 2):
             for x in range(0, w, 4):
-                buf565.fill_rect(x, y, 2, 2, palet[img[pos] & 0xF])
-                buf565.fill_rect(x + 2, y, 2, 2, palet[img[pos] >> 4])
+                buf565.fill_rect(x, y, 2, 2, palet[image[pos] & 0xF])
+                buf565.fill_rect(x + 2, y, 2, 2, palet[image[pos] >> 4])
                 pos += 1
         image_buffers.append(buf565)
 
