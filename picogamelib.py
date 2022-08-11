@@ -626,12 +626,12 @@ class Director:
         """カレントシーンの実行
         カレントシーンをループ再生
         """
-        if not self.scene_stack:
-            return
-
         while True:
             self.is_playing = True
             s = self.scene_stack[-1]
+            if not self.scene_stack:
+                return
+
             while self.is_playing:
                 s.action()
 

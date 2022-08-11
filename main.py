@@ -98,7 +98,7 @@ class MainScene(gl.Scene):
 
         # ポーズ
         if self.active and self.key.push & pl.KEY_A:
-            pass
+            self.director.push("pause")
 
     def leave(self):
         """終了処理"""
@@ -128,8 +128,11 @@ class PauseScene(gl.Scene):
         super().enter()
 
     def action(self):
-        while True:
-            super().action()
+        super().action()
+        # ポーズ解除
+        if self.active and self.key.push & pl.KEY_A:
+            self.director.pop()
+
 
     def leave(self):
         super().leave
