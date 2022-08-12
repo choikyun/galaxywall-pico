@@ -33,6 +33,11 @@ LEVEL_MAX = 5
 # 12ラインで色が変わる
 COLOR_STEP = 12
 
+# スコア
+SCORE_DIGHT = 5
+SCORE_WIDTH = 16
+SCORE_HEIGHT = 16
+
 # パネル
 PANEL_WIDTH = 20
 PANEL_HEIGHT = 20
@@ -63,6 +68,7 @@ CHR_SCORE = 10
 CHR_LINES = 11
 CHR_INFO_A = 12
 CHR_INFO_BRIGHT = 13
+CHR_NUM = 14
 
 # ポーズ画面
 LV_W = 32
@@ -166,6 +172,12 @@ class PauseScene(gl.Scene):
             INFO_BRIGHT_H,
             1,
         )
+        for i in range(SCORE_DIGIT):
+            # スコア表示用スプライト
+            self.socores.append(gl.Sprite(stage,CHR_NUM, "", 0, 0, NUM_W, NUM_H, 1))
+            # ハイスコア表示用スプライト
+            self.hiscores.append(gl.Sprite(stage,CHR_NUM, "", 0, 0, NUM_W, NUM_H, 1))
+        
 
     def enter(self):
         super().enter()
@@ -173,8 +185,13 @@ class PauseScene(gl.Scene):
         self.score.enter()
         self.lines.enter()
         self.hi.enter()
-        # self.info_a.enter()
         self.info_brightbright.enter()
+
+        for i in range(0, SCORE_DIGIT, -1):
+            self.scores.enter()
+            self.scores.set_num(game_status["score"], i)
+            self.hiscores.enter()
+            self.hiscores.set_num(game_status["score"], i)
 
     def action(self):
         super().action()
@@ -534,6 +551,34 @@ class ShotPanel(gl.Sprite):
 
         self.x += SHOT_SPEED
 
+class Num(gl.Sprite):
+    """数字表示用"""
+    def __init__(self, parent, chr_no, name, x, y, z, w, h):
+        super().__init__(parent, chr_no, name, x, y, z, w, h, 1)
+        # 表示する数値（1桁）
+        self.num = 0
+
+    def enter(self):
+        super().enter()
+
+    def leave(self):
+        super().leave()
+
+    def action(self):
+        super().action()
+
+    def set_num(score, digit):
+        """数値をセット
+        
+        params:
+            score (int): スコア
+            digit (int): 表示したい桁
+        """
+        for i in range(digit - 1)
+            score //= 10
+        self.num = score % 10
+        self.chr_no = CHR_NUM + self.num
+
 
 # スプライト用イメージバッファ生成
 chr_data = [
@@ -551,6 +596,16 @@ chr_data = [
     (data.lines, 76, 14),
     (data.info_a, 44, 22),
     (data.info_bright, 44, 24),
+    (data.num_0, 16, 16), # 数字
+    (data.num_1, 16, 16),
+    (data.num_2, 16, 16),
+    (data.num_3, 16, 16),
+    (data.num_4, 16, 16),
+    (data.num_5, 16, 16),
+    (data.num_6, 16, 16),
+    (data.num_7, 16, 16),
+    (data.num_8, 16, 16),
+    (data.num_9, 16, 16),
 ]
 
 # イメージバッファ生成
