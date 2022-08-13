@@ -99,7 +99,9 @@ def create_image_buffers(palet, index_images):
 class Sprite:
     """スプライト
     表示キャラクタの基本単位.
-    スプライトは入れ子にできる.座標は親スプライトからの相対位置となる.
+    スプライトは入れ子にできる.
+    座標は親スプライトからの相対位置となる.
+    parent を設定すると生成時に親のリスト登録する（表示される）
 
     Params:
         parent (Sprite): 親のスプライト
@@ -110,7 +112,6 @@ class Sprite:
         z (int): Z座標 小さい順に描画
         w (int): 幅
         h (int): 高さ
-        frame_max (int): アニメ用フレーム数
 
     Attributes:
         parent (Sprite): 親のスプライト
@@ -132,7 +133,7 @@ class Sprite:
         frame_wait (int): アニメ用フレーム切り替えウェイト
     """
 
-    def __init__(self, parent, chr_no, name, x, y, z, w, h, frame_max):
+    def __init__(self, parent, chr_no, name, x, y, z, w, h):
         self.chr_no = chr_no
         self.name = name
         self.x = x
@@ -142,19 +143,20 @@ class Sprite:
         self.h = h
         self.cx = self.w // 2 - 1
         self.cy = self.h // 2 - 1
-        self.visible = True
+        self.visible = False
 
         self.parent = parent  # 親スプライト
         self.sprite_list = []  # 子スプライトのリスト
-        if parent != None:
+        if parent is not None:
             self.stage = parent.stage  # ステージのショートカット
             self.scene = parent.stage.scene  # シーンのショートカット
+            parent.add_sprite(self)  # 親に追加
         else:
             self.stage = None
             self.scene = None
 
         # フレームアニメ
-        self.frame_max = frame_max  # フレーム数
+        self.frame_max = 1  # フレーム数
         self.frame_index = 0  # フレームのインデックス
         self.frame_wait = 4  # フレームのウェイト
 
@@ -184,13 +186,12 @@ class Sprite:
         for sp in self.sprite_list:
             sp.action()
 
-        # アニメ用のフレームカウント
-        self.frame_wait -= 1
-        if self.frame_wait == 0:
-            self.frame_wait = 8
-            self.frame_index += 1
-            if self.frame_index >= self.frame_max:
-                self.frame_index = 0
+        if self.visible:
+            # アニメ用のフレームカウント
+            self.frame_wait -= 1
+            if self.frame_wait == 0:
+                self.frame_wait = 8
+                self.frame_index = (self.frame_index + 1) % self.frame_max
 
     def hit_test(self, sp):
         """当たり判定
@@ -256,22 +257,29 @@ class Sprite:
         """入場
         イベントリスナーの登録等
         """
-        # 親に登録
-        if self.parent != None:
-            self.parent.add_sprite(self)
+        for sp in self.sprite_list:
+            sp.enter()
+
+        # アクション・表示
+        self.visible = True
 
     def leave(self):
         """退場
         ・親から削除
         ・イベントリスナーの削除
         """
+
         for sp in self.sprite_list:
             sp.leave()
         self.sprite_list.clear()
 
-        if self.parent != None:
+        if self.parent is not None:
             self.parent.remove_sprite(self)
             self.parent = None
+        
+        self.stage = None
+        self.scene = None
+        self.visible = False
 
     def abs_x(self):
         """絶対座標 X"""
@@ -286,12 +294,37 @@ class Sprite:
         return self.y + self.abs_y()
 
 
+class SpriteContainer(Sprite):
+    """スプライトのコンテナ
+    自身は描画しない.子スプライトのみ.
+    """
+
+    def __init__(self, parent, name, x, y, z):
+        super().__init__(parent, 0, name, x, y, z, 0, 0)
+
+    def show(self, frame_buffer, x, y):
+        """子スプライトのみフレームバッファに描画
+
+        Params:
+            frame_buffer (FrameBuffer): 描画対象のバッファ(通常BG)
+            x (int): 親のX座標
+            y (int): 親のY座標
+        """
+        if self.visible:
+            x += self.x
+            y += self.y
+            # 子スプライトの描画
+            for sp in self.sprite_list:
+                sp.show(frame_buffer, x, y)
+
+
 class Stage(Sprite):
     """ステージ
-    スプライトのルートオブジェクト.
-    LCDバッファにスプライトを描画.
+    LCDバッファにスプライトを描画するスプライトのルートオブジェクト.
+    ルートなので parent は None となる.
 
     Params:
+        scene (Scene): 親になるシーン
         chr_no (int): 画像No image_buffers に対応した番号
         name (str or int): キャラクタ識別の名前
         x (int): X座標
@@ -319,26 +352,16 @@ class Stage(Sprite):
         stage (Stage) 自分自身
     """
 
-    def __init__(self, chr_no, name, x, y, z, w, h):
-        super().__init__(None, chr_no, name, x, y, z, w, h, 1)
+    def __init__(self, scene, chr_no, name, x, y, z, w, h):
+        super().__init__(None, chr_no, name, x, y, z, w, h)
 
-        # シーン
-        self.scene = None
         # ステージ 自分自身
         self.stage = self
-
-    def enter(self, scene):
-        """入場
-        シーンをセット
-
-        Params:
-            scene (Scene) 親になるシーン
-        """
+        # 親になるシーン
         self.scene = scene
 
     def show(self):
         """LCDに表示"""
-
         if self.visible:
             lcd.show()
 
@@ -347,23 +370,12 @@ class Stage(Sprite):
         ・スプライトのアクションを実行
         ・スプライトを描画
         """
-
         # BGバッファ クリア
         lcd.fill(bg_color)
         # 子スプライトのアクションと描画
         for s in self.sprite_list:
             s.action()
             s.show(lcd, self.x, self.y)
-
-    def leave(self):
-        """終了処理
-        すべてのスプライトをリムーブ.
-        スプライトの終了処理を呼ぶ.
-        """
-        for sp in self.sprite_list:
-            sp.leave()
-
-        self.sprite_list.clear()
 
 
 class Anime:
@@ -539,11 +551,12 @@ class Scene:
         active (bool): 現在シーンがアクティブ（フレーム処理中）か
     """
 
-    def __init__(self, name, stage, event_manager, key):
+    def __init__(self, name):
         self.name = name
-        self.stage = stage
-        self.event = event_manager
-        self.key = key
+        self.stage = None
+        self.event = None
+        self.key = None
+
         # FPS関連
         self.fps_ticks = utime.ticks_ms()
         self.fps = DEFAULT_FPS
@@ -552,8 +565,16 @@ class Scene:
         self.frame_count = 0  # 経過フレーム
         self.director = None
 
+    def register(self, stage, event, key):
+        """ステージ, イベント, キー入力 の登録"""
+        self.stage = stage
+        self.event = event
+        self.key = key
+
     def enter(self):
         """入場"""
+        # ステージの有効化
+        self.stage.enter()
         # 初回イベント
         self.event.post([EV_ENTER_FRAME, EV_PRIORITY_MID, 0, self, self.key])
 
@@ -615,16 +636,16 @@ class Director:
         Params:
             scene_name (str): シーン名
         """
-        self.is_playing = False # 一時停止
+        self.is_playing = False  # 一時停止
         s = self.__get_scene(scene_name)  # 名前でシーン取得
         if s is None:
             return False
         self.scene_stack.append(s)
         s.enter()
-        return True
+        return s
 
     def play(self):
-        """カレントシーンの実行
+        """カレントシーン実行
         カレントシーンをループ再生
         """
         while True:
@@ -637,13 +658,16 @@ class Director:
                 s.action()
 
     def pop(self):
-        """カレントシーンのポップ（終了）"""
+        """カレントシーンのポップ（ポーズ）"""
         if not self.scene_stack:
             return False
         self.is_playing = False
-        s = self.scene_stack.pop()
-        s.leave()  # シーン終了
-        return True
+        return self.scene_stack.pop()
+
+    def stop(self):
+        """シーン終了"""
+        s = self.pop()
+        s.leave()
 
     def __get_scene(self, scene_name):
         """シーンリストからシーンを取得

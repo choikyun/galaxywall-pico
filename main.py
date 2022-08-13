@@ -2,6 +2,7 @@
 __version__ = "1.0.0"
 __author__ = "Choi Gyun 2022"
 
+import machine
 import random
 
 import utime
@@ -30,11 +31,11 @@ FIELD_HEIGHT = 6
 
 # レベル
 LEVEL_MAX = 5
-# 12ラインで色が変わる
-COLOR_STEP = 12
+# 3ラインで色が変わる
+COLOR_STEP = 3
 
 # スコア
-SCORE_DIGHT = 5
+SCORE_DIGIT = 5
 SCORE_WIDTH = 16
 SCORE_HEIGHT = 16
 
@@ -84,6 +85,9 @@ INFO_A_H = 22
 INFO_BRIGHT_W = 44
 INFO_BRIGHT_H = 24
 
+NUM_W = 16
+NUM_H = 16
+
 # イベント
 EV_CHECK_HIT = "event_check_hit_panel"
 """弾とパネルの当たり判定"""
@@ -94,14 +98,15 @@ EV_DELETE_LINE = "event_delete_line"
 class MainScene(gl.Scene):
     """メイン"""
 
-    def __init__(self, name, key_input):
+    def __init__(self, name, key):
+        super().__init__(name)
         # ステージ
-        stage = MainStage(0, "", 0, 0, 0, pl.LCD_WIDTH, pl.LCD_HEIGHT)
+        stage = MainStage(self, 0, "", 0, 0, 0, pl.LCD_WIDTH, pl.LCD_HEIGHT)
         # イベントマネージャ
-        event_manager = gl.EventManager()
-        super().__init__(name, stage, event_manager, key_input)
-        # ステージにシーンをセット
-        self.stage.scene = self
+        event = gl.EventManager()
+        # 登録
+        self.register(stage, event, key)
+
         # スプライト作成
         self.ship = Ship(
             stage, CHR_SHIP, "SHIP", 0, 0, 1, SHIP_WIDTH, SHIP_HEIGHT
@@ -112,15 +117,16 @@ class MainScene(gl.Scene):
 
     def enter(self):
         """ゲームの初期化処理"""
-        super().enter()
-        # 自機初期化
-        self.ship.enter()
+
         # フィールド初期化
+        self.fieldmap.clear()
         for i in range(6):
             self.fieldmap.set_new_line(6 + i)
+        # ステータス初期化
         game_status["lines"] = 0
         game_status["score"] = 0
         game_status["lv"] = 1
+        super().enter()
 
     def action(self):
         """フレーム毎のアクション 30FPS"""
@@ -143,55 +149,47 @@ class PauseScene(gl.Scene):
     ・LCD輝度調整
     """
 
-    def __init__(self, name, key_input):
+    def __init__(self, name, key):
+        super().__init__(name)
         # ステージ
-        stage = MainStage(0, "", 0, 0, 0, pl.LCD_WIDTH, pl.LCD_HEIGHT)
+        stage = MainStage(self, 0, "", 0, 0, 0, pl.LCD_WIDTH, pl.LCD_HEIGHT)
         # イベントマネージャ
-        event_manager = gl.EventManager()
-        super().__init__(name, stage, event_manager, key_input)
-        # ステージにシーンをセット
-        self.stage.scene = self
+        event = gl.EventManager()
+        # 登録
+        self.register(stage, event, key)
 
         # スプライト作成
-        self.lv = gl.Sprite(stage, CHR_LV, "lv", 64, 6, 1, LV_W, LV_H, 1)
-        self.lines = gl.Sprite(
-            stage, CHR_LINES, "lines", 22, 30, 1, LINES_W, LINES_H, 1
+        gl.Sprite(stage, CHR_LV, "lv", 64, 6, 1, LV_W, LV_H)
+        gl.Sprite(stage, CHR_LINES, "lines", 22, 30, 1, LINES_W, LINES_H)
+        gl.Sprite(
+            stage,
+            CHR_SCORE,
+            "score",
+            18,
+            54,
+            1,
+            SCORE_W,
+            SCORE_H,
         )
-        self.score = gl.Sprite(
-            stage, CHR_SCORE, "score", 18, 52, 1, SCORE_W, SCORE_H, 1
-        )
-        self.hi = gl.Sprite(stage, CHR_HI, "hi", 68, 74, 1, HI_W, HI_H, 1)
-        self.info_brightbright = gl.Sprite(
+        gl.Sprite(stage, CHR_HI, "hi", 68, 78, 1, HI_W, HI_H)
+        gl.Sprite(
             stage,
             CHR_INFO_BRIGHT,
             "info-bright",
             196,
-            98,
+            102,
             1,
             INFO_BRIGHT_W,
             INFO_BRIGHT_H,
-            1,
         )
-        for i in range(SCORE_DIGIT):
-            # スコア表示用スプライト
-            self.socores.append(gl.Sprite(stage,CHR_NUM, "", 0, 0, NUM_W, NUM_H, 1))
-            # ハイスコア表示用スプライト
-            self.hiscores.append(gl.Sprite(stage,CHR_NUM, "", 0, 0, NUM_W, NUM_H, 1))
-        
+        # スコア
+        self.score = ScoreNum(self.stage, "score_num", 108, 54, 2)
+        self.hi = ScoreNum(self.stage, "hi_num", 108, 78, 2)
 
     def enter(self):
+        self.score.set_value(game_status["score"])
+        self.hi.set_value(game_status["hi"])
         super().enter()
-        self.lv.enter()
-        self.score.enter()
-        self.lines.enter()
-        self.hi.enter()
-        self.info_brightbright.enter()
-
-        for i in range(0, SCORE_DIGIT, -1):
-            self.scores.enter()
-            self.scores.set_num(game_status["score"], i)
-            self.hiscores.enter()
-            self.hiscores.set_num(game_status["score"], i)
 
     def action(self):
         super().action()
@@ -212,15 +210,19 @@ class PauseScene(gl.Scene):
             if self.key.push & pl.KEY_A:
                 self.director.pop()
 
+            # リセット
+            #if self.key.push & (pl.KEY_B | pl.KEY_UP):
+            #    machine.reset()
+
     def leave(self):
-        super().leave
+        super().leave()
 
 
 class MainStage(gl.Stage):
     """ステージ"""
 
-    def __init__(self, chr_no, name, x, y, z, w, h):
-        super().__init__(chr_no, name, x, y, z, w, h)
+    def __init__(self, scene, chr_no, name, x, y, z, w, h):
+        super().__init__(scene, chr_no, name, x, y, z, w, h)
 
     def action(self):
         # スプライトアクション
@@ -233,16 +235,15 @@ class Ship(gl.Sprite):
     """自機クラス"""
 
     def __init__(self, parent, chr_no, name, x, y, z, w, h):
-        super().__init__(parent, chr_no, name, x, y, z, w, h, 1)
-
-        self.fire_panel_num = 0  # 現在の発射数
+        super().__init__(parent, chr_no, name, x, y, z, w, h)
         self.move_anime = gl.Anime(self.scene.event, ease.out_quart)  # 移動アニメ
-
-    def enter(self):
-        super().enter()
+        self.move_anime.attach()  # アニメ有効化
         # イベントリスナー登録
         self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
-        self.move_anime.attach()  # アニメ有効化
+
+    def enter(self):
+        self.fire_panel_num = 0  # 現在の発射数
+        super().enter()
 
     def leave(self):
         # イベントリスナー削除
@@ -329,10 +330,21 @@ class FieldMap:
         self.scroll_wait_def = SCROLL_WAIT  # スクロールのデフォルト値
         # カラー
         self.current_color = 0
+        # コンボ
+        self.combo = 0
         # イベントリスナー登録
         self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
         self.scene.event.listners.append((EV_DELETE_LINE, self))  # ライン消去
 
+    def clear(self):
+        """マップをクリア
+        スプライトも破棄
+        """
+        for y in range(FIELD_HEIGHT):
+            for x in range(FIELD_WIDTH):
+                if self.fieldmap[y][x] is not None:
+                    self.fieldmap[y][x].leave()
+                
     def set_new_line(self, x=FIELD_WIDTH - 1):
         """新しいラインを作成"""
         # 1列削除
@@ -438,6 +450,9 @@ class FieldMap:
         )
         # 一定時間停止
         self.scroll_wait += SCROLL_STOP_TIME
+        # スコア可算
+        self.combo += 1
+        game_status["score"] += (FIELD_WIDTH - x) * self.combo
 
     def __scroll_map(self):
         """フィールドマップとスプライトの更新"""
@@ -495,12 +510,15 @@ class FieldMap:
                 self.fieldmap[y][0].leave()
                 self.fieldmap[y][0] = None
 
+        # コンボひとつ終了
+        self.combo -= 1
+
 
 class Panel(gl.Sprite):
-    """パネル"""
+    """迫りくるパネル"""
 
     def __init__(self, parent, chr_no, name, x, y, z, w, h):
-        super().__init__(parent, chr_no, name, x, y, z, w, h, 1)
+        super().__init__(parent, chr_no, name, x, y, z, w, h)
         # ベースのX座標
         self.base_x = x
         # 点滅
@@ -528,11 +546,11 @@ class ShotPanel(gl.Sprite):
     """自機の打ち出すパネル"""
 
     def __init__(self, parent, chr_no, name, x, y, z, w, h):
-        super().__init__(parent, chr_no, name, x, y, z, w, h, 1)
+        super().__init__(parent, chr_no, name, x, y, z, w, h)
+        self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
 
     def enter(self):
         super().enter()
-        self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
 
     def leave(self):
         self.scene.event.remove_all_listner(self)
@@ -546,38 +564,51 @@ class ShotPanel(gl.Sprite):
         # 移動
         if self.x % PANEL_WIDTH == 0:
             # イベントを出さずにここで当たり判定
-            # self.scene.event.post([EV_CHECK_HIT, gl.EV_PRIORITY_HI, self, self.scene.ship])
             self.scene.fieldmap.check_hit_panel(self)
 
         self.x += SHOT_SPEED
 
-class Num(gl.Sprite):
-    """数字表示用"""
-    def __init__(self, parent, chr_no, name, x, y, z, w, h):
-        super().__init__(parent, chr_no, name, x, y, z, w, h, 1)
-        # 表示する数値（1桁）
-        self.num = 0
+
+class ScoreNum(gl.SpriteContainer):
+    """スコア表示
+    子スプライトが数字を表示
+
+    Params;
+        score (int): スコア
+    """
+
+    def __init__(self, parent, name, x, y, z):
+        super().__init__(parent, name, x, y, z)
+        # 子スプライト
+        self.score = []
+        for i in range(SCORE_DIGIT):
+            # 桁数分の数字スプライト
+            self.score.append(
+                gl.Sprite(
+                    self,
+                    CHR_NUM,
+                    "",
+                    i * (NUM_W + 2),
+                    0,
+                    1,
+                    NUM_W,
+                    NUM_H,
+                )
+            )
+        # ゲタ 00 追加
+        gl.Sprite(self, CHR_NUM, "", 90, 0, 1, NUM_W, NUM_H)
+        gl.Sprite(self, CHR_NUM, "", 90 + NUM_W + 2, 0, 1, NUM_W, NUM_H)
 
     def enter(self):
         super().enter()
 
-    def leave(self):
-        super().leave()
-
-    def action(self):
-        super().action()
-
-    def set_num(score, digit):
-        """数値をセット
-        
-        params:
-            score (int): スコア
-            digit (int): 表示したい桁
-        """
-        for i in range(digit - 1)
-            score //= 10
-        self.num = score % 10
-        self.chr_no = CHR_NUM + self.num
+    def set_value(self, val):
+        """数値をセット"""
+        for i in range(SCORE_DIGIT):
+            s = val
+            for d in range(SCORE_DIGIT - i - 1):
+                s //= 10
+            self.score[i].chr_no = CHR_NUM + (s % 10)
 
 
 # スプライト用イメージバッファ生成
@@ -596,7 +627,7 @@ chr_data = [
     (data.lines, 76, 14),
     (data.info_a, 44, 22),
     (data.info_bright, 44, 24),
-    (data.num_0, 16, 16), # 数字
+    (data.num_0, 16, 16),  # 数字
     (data.num_1, 16, 16),
     (data.num_2, 16, 16),
     (data.num_3, 16, 16),
