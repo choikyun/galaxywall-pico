@@ -50,6 +50,9 @@ image_buffers = []
 
 bg_color = 0x0000
 """BGカラー"""
+trans_color = 0x618
+"""透過色"""
+
 lcd = pl.LCD()
 """BGバッファ 全シーン共有"""
 
@@ -177,7 +180,7 @@ class Sprite:
 
             # 現在のフレームを描画
             frame_buffer.blit(
-                image_buffers[self.chr_no + self.frame_index], x, y, bg_color
+                image_buffers[self.chr_no + self.frame_index], x, y, trans_color
             )
 
     def action(self):
@@ -243,15 +246,10 @@ class Sprite:
 
         Params:
             sp (Sprite): スプライト
-        Returns:
-            Sprite or None: 削除したスプライト or None
         """
-        for i, s in enumerate(self.sprite_list):
-            if s is sp:
-                self.sprite_list.pop(i)
-                return s
-
-        return None
+        for i in range(len(self.sprite_list)- 1, -1, -1):
+            if self.sprite_list[i] is sp:
+                del self.sprite_list[i]
 
     def enter(self):
         """入場
@@ -260,17 +258,19 @@ class Sprite:
         for sp in self.sprite_list:
             sp.enter()
 
-        # アクション・表示
+        # アクション・表示 を ON
         self.visible = True
 
     def leave(self):
         """退場
         ・親から削除
         ・イベントリスナーの削除
+        もう使用しない
         """
 
         for sp in self.sprite_list:
             sp.leave()
+            del sp
         self.sprite_list.clear()
 
         if self.parent is not None:
@@ -392,15 +392,15 @@ class Anime:
     """
 
     def __init__(self, event, ease_func):
+        self.event = event
+        self.func = ease_func
+        self.is_playing = False  # 実行中フラグ
+        self.is_paused = False  # ポーズ中フラグ
         self.start = 0
         self.delta = 0
         self.current_frame = 0
         self.total_frame = 0
-        self.event = event
-        self.func = ease_func
         self.value = 0
-        self.is_playing = False  # 実行中フラグ
-        self.is_paused = False  # ポーズ中フラグ
 
     def attach(self):
         """アニメーションを使用可能に"""
@@ -414,12 +414,15 @@ class Anime:
         """開始"""
         if not self.is_paused:
             self.current_frame = 0
+        self.value = self.start
+
         self.is_playing = True
         self.is_paused = False
 
     def stop(self):
         """停止"""
         self.current_frame = 0
+
         self.is_playing = False
         self.is_paused = False
 
@@ -493,9 +496,9 @@ class EventManager:
         Params:
             listner (tuple): 0:type 1:リスナーを持つオブジェクト
         """
-        for i, ls in enumerate(self.listners):
-            if ls[0] == listner[0] and ls[1] is listner[1]:
-                self.listners.pop[i]
+        for i in range(len(self.listners) - 1, -1, -1):
+            if self.listners[i][0] == listner[0] and self.listners[i][1] is listner[1]:
+                del self.listners[i]
 
     def remove_all_listner(self, listner):
         """特定オブジェクトのすべてのリスナーを削除
@@ -503,9 +506,9 @@ class EventManager:
         Params:
             listner (obj): リスナーを持つオブジェクト
         """
-        for i, ls in enumerate(self.listners):
-            if ls[1] is listner:
-                self.listners.pop(i)
+        for i in range(len(self.listners) - 1, -1, -1):
+            if self.listners[i][1] is listner:
+                del self.listners[i]
 
     def fire(self):
         """イベントを処理"""
@@ -577,6 +580,7 @@ class Scene:
         self.stage.enter()
         # 初回イベント
         self.event.post([EV_ENTER_FRAME, EV_PRIORITY_MID, 0, self, self.key])
+        self.frame_count = 0
 
     def action(self):
         """実行"""
