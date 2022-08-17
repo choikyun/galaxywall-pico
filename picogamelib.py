@@ -26,6 +26,7 @@ import io
 import json
 import utime
 import framebuf as buf
+import gc
 
 import picolcd114 as pl
 
@@ -150,11 +151,11 @@ class Sprite:
 
         self.sprite_list = []  # 子スプライトのリスト
 
-        self.set_parent(parent) # 親スプライト
+        self.set_parent(parent)  # 親スプライト
         self.set_anime_param()  # フレームアニメ
 
-    def set_parent(self, parent)
-    """親スプライトをセット"""
+    def set_parent(self, parent):
+        """親スプライトをセット"""
         if parent is None:
             self.stage = None
             self.scene = None
@@ -294,12 +295,12 @@ class Sprite:
         ・イベントリスナーの削除, その他終了処理.
         """
         for sp in self.sprite_list:
-            sp.leave() # 子スプライトも退場
+            sp.leave()  # 子スプライトも退場
 
         # 親から削除
-        if parent is not None:
-            parent.remove_sprite(self)
-        
+        if self.parent is not None:
+            self.parent.remove_sprite(self)
+
         self.visible = False
 
     def abs_x(self):
@@ -314,9 +315,9 @@ class Sprite:
             return self.y
         return self.y + self.abs_y()
 
-    del __del__(self):
-    """デバッグ用"""
-    print("del:%" %self.name)
+    def __del__(self):
+        """デバッグ用"""
+        print("del:%" % self.name)
 
 
 class SpriteContainer(Sprite):
@@ -518,7 +519,7 @@ class EventManager:
 
     def enable_listners(self, targets=None, ignores=None):
         """全てのリスナーを有効化
-        
+
         Params:
             target (list): 対象イベントタイプ
             ignore (list): 除外イベントタイプ
@@ -540,7 +541,7 @@ class EventManager:
 
     def disable_listners(self, targets=None, ignores=None):
         """全てのリスナーを無効化
-                
+
         Params:
             target (list): 対象イベントタイプ
             ignore (list): 除外イベントタイプ
@@ -568,8 +569,8 @@ class EventManager:
             listner (list): 0:type 1:リスナーを持つオブジェクト 2: 有効か
         """
         for li in self.listners:
-            li[0] == listner[0] and li[1] == listner[1]:
-            return
+            if li[0] == listner[0] and li[1] == listner[1]:
+                return
         self.listners.append(listner)
 
     def remove_lister(self, listner):
@@ -610,7 +611,7 @@ class EventManager:
             event (list): 0:type 1:priority 2:delay 3:sender 4:optiion
         """
         for listner in self.listners:
-            if event[0] == listner[0] and lister[2]: # 有効なリスナーのみ
+            if event[0] == listner[0] and listner[2]:  # 有効なリスナーのみ
                 # コールバック呼び出し
                 getattr(listner[1], event[0])(event[0], event[3], event[4])
 

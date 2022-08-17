@@ -310,6 +310,86 @@ p_x = (
     b"\xdd\xdd\xdd\xdd\xfd"
     b"\xdd\xdd\xdd\xdd\xfd"
 )
+p_flash = (
+    b"\xcc\xcc\xcc\xcc\xfc"
+    b"\xcc\xcc\xcc\xcc\xfc"
+    b"\xcc\xcc\xcc\xcc\xfc"
+    b"\xcc\xcc\xcc\xcc\xfc"
+    b"\xcc\xcc\xcc\xcc\xfc"
+    b"\xcc\xcc\xcc\xcc\xfc"
+    b"\xcc\xcc\xcc\xcc\xfc"
+    b"\xcc\xcc\xcc\xcc\xfc"
+    b"\xcc\xcc\xcc\xcc\xfc"
+    b"\xcc\xcc\xcc\xcc\xfc"
+)
+deadline = (
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' \
+    b'\xff' \
+    b'\xff' \
+    b'\x11' \
+    b'\x11' 
+)
 
 score = (
     b"\xee\xee\xee\xee\xee\xee\xee\xee\xee\xee\xee\xee\xee\xee\xee\xee\xee\xee\xee\xee\xfe"

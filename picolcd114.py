@@ -14,8 +14,8 @@ SCK = 10
 CS = 9
 
 # 画面サイズ
-LCD_WIDTH = 240
-LCD_HEIGHT = 135
+LCD_W = 240
+LCD_H = 135
 
 # キー入力
 KEY_UP = 0b0000_1000
@@ -46,8 +46,8 @@ class LCD(framebuf.FrameBuffer):
         self.dc(1)
 
         # LCD用のバッファ RGB565
-        self.buf = bytearray(LCD_WIDTH * LCD_HEIGHT * 2)
-        super().__init__(self.buf, LCD_WIDTH, LCD_HEIGHT, framebuf.RGB565)
+        self.buf = bytearray(LCD_W * LCD_H * 2)
+        super().__init__(self.buf, LCD_W, LCD_H, framebuf.RGB565)
 
         # 液晶の明るさ
         self.pwm = PWM(Pin(BL))

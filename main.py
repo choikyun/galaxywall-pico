@@ -20,7 +20,7 @@ class MainScene(gl.Scene):
     def __init__(self, name, key):
         super().__init__(name)
         # ステージ
-        stage = MainStage(self, 0, "", 0, 0, 0, pl.LCD_WIDTH, pl.LCD_HEIGHT)
+        stage = MainStage(self, 0, "", 0, 0, 0, pl.LCD_W, pl.LCD_H)
         # イベントマネージャ
         event = gl.EventManager()
         # 登録
@@ -30,10 +30,13 @@ class MainScene(gl.Scene):
         event.add_listner([c.EV_GAMEOVER, self, True])
         # スプライト作成
         self.ship = Ship(
-            stage, c.CHR_SHIP, "ship", 0, 0, 100, c.SHIP_WIDTH, c.SHIP_HEIGHT
+            stage, c.CHR_SHIP, "ship", 0, 0, 200, c.SHIP_W, c.SHIP_H
+        )
+        self.deadline = gl.Sprite(
+            stage, c.CHR_DEADLINE, "deadline", 0, 0, 100, c.DEAD_W, c.DEAD_H
         )
         # フィールド作成
-        self.fieldmap = FieldMap(stage, c.FIELD_WIDTH, c.FIELD_HEIGHT)
+        self.fieldmap = FieldMap(stage, c.FIELD_W, c.FIELD_H)
 
     def enter(self):
         """ゲームの初期化処理"""
@@ -79,7 +82,7 @@ class PauseScene(gl.Scene):
     def __init__(self, name, key):
         super().__init__(name)
         # ステージ
-        stage = MainStage(self, 0, "", 0, 0, 0, pl.LCD_WIDTH, pl.LCD_HEIGHT)
+        stage = MainStage(self, 0, "", 0, 0, 0, pl.LCD_W, pl.LCD_H)
         # イベントマネージャ
         event = gl.EventManager()
         # 登録
@@ -130,9 +133,11 @@ class PauseScene(gl.Scene):
             ):
                 game_status["brightness"] += 1
                 gl.lcd.brightness(game_status["brightness"])
+                gl.save_status(game_status)
             elif self.key.push & pl.KEY_DOWN and game_status["brightness"] > 0:
                 game_status["brightness"] -= 1
                 gl.lcd.brightness(game_status["brightness"])
+                gl.save_status(game_status)
 
             # ポーズ解除
             if self.key.push & pl.KEY_A:
@@ -167,7 +172,7 @@ class OverScene(gl.Scene):
     def __init__(self, name, key):
         super().__init__(name)
         # ステージ
-        stage = MainStage(self, 0, "", 0, 0, 0, pl.LCD_WIDTH, pl.LCD_HEIGHT)
+        stage = MainStage(self, 0, "", 0, 0, 0, pl.LCD_W, pl.LCD_H)
         # イベントマネージャ
         event = gl.EventManager()
         # 登録
@@ -210,6 +215,10 @@ class OverScene(gl.Scene):
         self.hi_num = ScoreNum(self.stage, c.SCORE_DIGIT, "hi_num", 108, 88, 1)
 
     def enter(self):
+        if game_status["score"] > game_status["hi"]:
+            game_status["hi"] = game_status["score"]
+            gl.save_status(game_status)
+
         self.lines_num.set_value(game_status["lines"])
         self.score_num.set_value(game_status["score"])
         self.hi_num.set_value(game_status["hi"])
@@ -278,8 +287,8 @@ class Ship(gl.Sprite):
             self.x,
             self.y,
             10,
-            c.SHOT_WIDTH,
-            c.SHOT_HEIGHT,
+            c.SHOT_W,
+            c.SHOT_H,
         )
         shot.enter()
 
@@ -337,7 +346,7 @@ class FieldMap:
 
         # フィールドマップ パネルの配置 2次元マップ
         self.fieldmap = [
-            [None for i in range(c.FIELD_WIDTH)] for j in range(c.FIELD_HEIGHT)
+            [None for i in range(c.FIELD_W)] for j in range(c.FIELD_H)
         ]
 
     def init_map(self):
@@ -358,19 +367,19 @@ class FieldMap:
         # フィールド初期化
         self.clear()
         for i in range(c.DEF_LINES):
-            self.set_new_line(c.FIELD_WIDTH - c.DEF_LINES + i)
+            self.set_new_line(c.FIELD_W - c.DEF_LINES + i)
 
     def clear(self):
         """マップをクリア
         スプライトも破棄
         """
-        for y in range(c.FIELD_HEIGHT):
-            for x in range(c.FIELD_WIDTH):
+        for y in range(c.FIELD_H):
+            for x in range(c.FIELD_W):
                 if self.fieldmap[y][x] is not None:
                     self.fieldmap[y][x].leave()
                     self.fieldmap[y][x] = None
 
-    def set_new_line(self, x=c.FIELD_WIDTH - 1):
+    def set_new_line(self, x=c.FIELD_W - 1):
         """新しいラインを作成"""
         # 1列削除
         self.__clear_line(x)
@@ -389,8 +398,8 @@ class FieldMap:
 
     def set_new_panel(self, x, y, color):
         """新しいパネルをセット"""
-        sp_x = x * c.PANEL_WIDTH
-        sp_y = y * (c.PANEL_HEIGHT + c.PANEL_BLANK_Y)
+        sp_x = x * c.PANEL_W
+        sp_y = y * (c.PANEL_H + c.PANEL_BLANK_Y)
         self.fieldmap[y][x] = Panel(
             self.stage,
             color + c.CHR_PANEL,
@@ -398,33 +407,20 @@ class FieldMap:
             sp_x,
             sp_y,
             50,
-            c.PANEL_WIDTH,
-            c.PANEL_HEIGHT,
+            c.PANEL_W,
+            c.PANEL_H,
         )
         self.fieldmap[y][x].enter()
 
-    def __shuffle(self, x):
-        """1列まぜる"""
-        for i in range(c.FIELD_HEIGHT):
-            y = random.randint(0, c.FIELD_HEIGHT - 1)
-            tmp = self.fieldmap[i][x]
-            self.fieldmap[i][x] = self.fieldmap[y][x]
-            self.fieldmap[y][x] = tmp
-
-        # Y座標決定
-        for y in range(c.FIELD_HEIGHT):
-            if self.fieldmap[y][x] is not None:
-                self.fieldmap[y][x].y = y * (c.PANEL_HEIGHT + c.PANEL_BLANK_Y)
-
     def check_hit_panel(self, shot_panel):
         """弾とパネルの当たり判定"""
-        x = shot_panel.x // c.PANEL_WIDTH
-        y = shot_panel.y // (c.PANEL_HEIGHT + c.PANEL_BLANK_Y)
+        x = shot_panel.x // c.PANEL_W
+        y = shot_panel.y // (c.PANEL_H + c.PANEL_BLANK_Y)
         hit = False
         new_panel_x = x
 
         # フィールドがスクロールしなかった場合
-        if x == (c.FIELD_WIDTH - 1) or self.fieldmap[y][x + 1] is not None:
+        if x == (c.FIELD_W - 1) or self.fieldmap[y][x + 1] is not None:
             hit = True
 
         # スクロールしている場合もある
@@ -440,33 +436,44 @@ class FieldMap:
             self.scene.ship.fire_panel_num -= 1
             self.__check_line(new_panel_x)  # ライン消去判定
 
+    def __shuffle(self, x):
+        """1列まぜる"""
+        for i in range(c.FIELD_H):
+            y = random.randint(0, c.FIELD_H - 1)
+            tmp = self.fieldmap[i][x]
+            self.fieldmap[i][x] = self.fieldmap[y][x]
+            self.fieldmap[y][x] = tmp
+
+        # Y座標決定
+        for y in range(c.FIELD_H):
+            if self.fieldmap[y][x] is not None:
+                self.fieldmap[y][x].y = y * (c.PANEL_H + c.PANEL_BLANK_Y)
+
     def __get_panel_color(self, x):
         """パネルの色を取得
-            無効な弾はグレー
+        無効な弾はグレー
         """
-        for y in range(c.FIELD_HEIGHT):
+        for y in range(c.FIELD_H):
             if self.fieldmap[y][x] is not None:
                 return self.fieldmap[y][x].chr_no - c.CHR_PANEL
         # 見つからない場合はグレー
-        return c.GRAY_PANEL
+        return c.CHR_PANELX - c.CHR_PANEL
 
     def __clear_line(self, pos_x):
         """1列削除"""
-        for i in range(c.FIELD_HEIGHT):
+        for i in range(c.FIELD_H):
             self.fieldmap[i][pos_x] = None
 
     def __check_line(self, x):
         """1列そろったか"""
-        for y in range(c.FIELD_HEIGHT):
+        for y in range(c.FIELD_H):
             if self.fieldmap[y][x] is None:
                 return
-        
-        # コンボ発生 
-        if self.combo >= 1:
-            pass
 
-        for y in range(c.FIELD_HEIGHT):
+        for y in range(c.FIELD_H):
             self.fieldmap[y][x].flash = True
+            if self.fieldmap[y][x].chr_no < c.CHR_PANELX:
+                self.fieldmap[y][x].chr_no = c.CHR_FLASH
 
         # ライン消去のイベント
         self.scene.event.post(
@@ -481,39 +488,39 @@ class FieldMap:
         # 一定時間停止
         self.scroll_wait += c.SCROLL_STOP_TIME
         # スコア可算 グレーパネルは無効
-        if self.fieldmap[0][x].chr_no != (c.CHR_PANEL + c.GRAY_PANEL):
+        if self.fieldmap[0][x].chr_no == c.CHR_FLASH:
             self.combo += 1
-            game_status["score"] += (c.FIELD_WIDTH - x) * self.combo
+            game_status["score"] += (c.FIELD_W - x) * self.combo
             # ライン可算
             game_status["lines"] += 1
 
     def __scroll_map(self):
         """フィールドマップとスプライトの更新"""
-        for y in range(c.FIELD_HEIGHT):
-            for x in range(c.FIELD_WIDTH - 1):
+        for y in range(c.FIELD_H):
+            for x in range(c.FIELD_W - 1):
                 self.fieldmap[y][x] = self.fieldmap[y][x + 1]  # 1キャラクタ分スクロール
                 if self.fieldmap[y][x] is not None:
-                    self.fieldmap[y][x].base_x -= c.PANEL_WIDTH  # ベース座標の更新
+                    self.fieldmap[y][x].base_x -= c.PANEL_W  # ベース座標の更新
 
     def __check_over(self):
         """ゲームオーバーか
         Returns:
             (bool): True ゲームオーバー
         """
-        for y in range(c.FIELD_HEIGHT):
+        for y in range(c.FIELD_H):
             if self.fieldmap[y][self.deadline] is not None:
                 # イベント発行
                 self.scene.event.post(
                     [
                         c.EV_GAMEOVER,
                         gl.EV_PRIORITY_HI,
-                        30, # タイムラグ 1秒後
+                        60,  # タイムラグ
                         self,
                         None,
                     ]
                 )
                 # ゲームオーバー以外のリスナーをオフにする
-                self.scene.event.disable_listers(None,[c.EV_GAMEOVER])
+                self.scene.event.disable_listners(None, [c.EV_GAMEOVER])
                 return True
 
         return False
@@ -540,8 +547,8 @@ class FieldMap:
                 self.set_new_line()
 
         # パネルスプライトを更新
-        for y in range(c.FIELD_HEIGHT):
-            for x in range(c.FIELD_WIDTH):
+        for y in range(c.FIELD_H):
+            for x in range(c.FIELD_W):
                 if self.fieldmap[y][x] is not None:
                     self.fieldmap[y][x].x = (
                         self.fieldmap[y][x].base_x + self.scroll_offset
@@ -549,28 +556,30 @@ class FieldMap:
 
     def event_delete_line(self, type, sender, option):
         """ライン消去"""
-        for pos in range(c.FIELD_WIDTH):
+        for pos in range(c.FIELD_W):
             if self.fieldmap[0][pos] is option:  # X座標を取得
+                chr_no = self.fieldmap[0][pos].chr_no
                 break
 
-        for y in range(c.FIELD_HEIGHT):
+        for y in range(c.FIELD_H):
             self.fieldmap[y][pos].leave()
             self.fieldmap[y][pos] = None
 
         # 詰める
-        for y in range(c.FIELD_HEIGHT):
+        for y in range(c.FIELD_H):
             for x in range(pos, 0, -1):
                 self.fieldmap[y][x] = self.fieldmap[y][x - 1]
                 if self.fieldmap[y][x] is not None:
-                    self.fieldmap[y][x].base_x += c.PANEL_WIDTH
+                    self.fieldmap[y][x].base_x += c.PANEL_W
 
         # 先頭は空
-        for y in range(c.FIELD_HEIGHT):
+        for y in range(c.FIELD_H):
             if self.fieldmap[y][0] is not None:
                 self.fieldmap[y][0] = None
 
         # コンボひとつ終了
-        self.combo -= 1
+        if chr_no != c.CHR_FLASH:
+            self.combo -= 1
 
 
 class Panel(gl.Sprite):
@@ -621,12 +630,38 @@ class ShotPanel(gl.Sprite):
     # イベントリスナー
     def event_enter_frame(self, type, sender, option):
         # 移動
-        if self.x % c.PANEL_WIDTH == 0:
+        if self.x % c.PANEL_W == 0:
             # イベントを出さずにここで当たり判定
             self.scene.fieldmap.check_hit_panel(self)
 
         self.x += c.SHOT_SPEED
 
+
+class DeadLine(gl.Sprite):
+    """デッドライン
+    一定間隔でせり上がる
+    """
+
+    def __init__(self, parent, chr_no, name, x, y, z, w, h):
+        super().__init__(parent, chr_no, name, x, y, z, w, h)
+        self.interval = DEAD_INTERAL # せり上がるまで
+
+
+        self.scene.event.add_listner([gl.EV_ENTER_FRAME, self, True])
+
+    def enter(self):
+        super().enter()
+
+    def leave(self):
+        self.scene.event.remove_all_listner(self)
+        super().leave()
+
+    def action(self):
+        super().action()
+
+    # イベントリスナー
+    def event_enter_frame(self, type, sender, option):
+        pass
 
 class ScoreNum(gl.SpriteContainer):
     """スコア表示
@@ -680,7 +715,8 @@ chr_data = [
     (data.p_3, 20, 20),
     (data.p_4, 20, 20),
     (data.p_5, 20, 20),
-    (data.p_x, 20, 20), # グレーパネル
+    (data.p_x, 20, 20),  # グレーパネル
+    (data.p_flash, 20, 20), # フラッシュ
     (data.s_0, 20, 20),  # 弾
     (data.hi, 28, 20),
     (data.score, 84, 20),
@@ -697,6 +733,7 @@ chr_data = [
     (data.num_7, 20, 20),
     (data.num_8, 20, 20),
     (data.num_9, 20, 20),
+    (data.deadline, 4, 128) # dead line
 ]
 
 # イメージバッファ生成
@@ -704,10 +741,14 @@ gl.create_image_buffers(data.palet565, chr_data)
 
 # ステータスをロード
 game_status = gl.load_status()
+
 if game_status is None:
     # デフォルト
     game_status = {"lv": 1, "score": 0, "hi": 0, "lines": 0, "brightness": 2}
     gl.save_status(game_status)
+
+# LCDの明るさ
+gl.lcd.brightness(game_status["brightness"])
 
 # キー入力 シーン共通
 key_global = pl.InputKey()
