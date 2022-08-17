@@ -109,7 +109,7 @@ class MainScene(gl.Scene):
         self.register(stage, event, key)
 
         # イベントリスナー
-        event.listners.append((EV_GAMEOVER, self))
+        event.listners.append([EV_GAMEOVER, self, True)
         # スプライト作成
         self.ship = Ship(stage, CHR_SHIP, "ship", 0, 0, 100, SHIP_WIDTH, SHIP_HEIGHT)
         # フィールド作成
@@ -342,7 +342,7 @@ class Ship(gl.Sprite):
         self.move_anime = gl.Anime(self.scene.event, ease.out_quart)  # 移動アニメ
         self.move_anime.attach()  # アニメ有効化
         # イベントリスナー登録
-        self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
+        self.scene.event.listners.append([gl.EV_ENTER_FRAME, self, True])
 
     def enter(self):
         self.fire_panel_num = 0  # 現在の発射数
@@ -424,8 +424,8 @@ class FieldMap:
         self.stage = stage
         self.scene = stage.scene
         # イベントリスナー登録
-        self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
-        self.scene.event.listners.append((EV_DELETE_LINE, self))  # ライン消去
+        self.scene.event.listners.append([gl.EV_ENTER_FRAME, self, True])
+        self.scene.event.listners.append([EV_DELETE_LINE, self, True])  # ライン消去
 
         # フィールドマップ パネルの配置 2次元マップ
         self.fieldmap = [
@@ -686,7 +686,7 @@ class ShotPanel(gl.Sprite):
 
     def __init__(self, parent, chr_no, name, x, y, z, w, h):
         super().__init__(parent, chr_no, name, x, y, z, w, h)
-        self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
+        self.scene.event.listners.append([gl.EV_ENTER_FRAME, self, True])
 
     def enter(self):
         super().enter()

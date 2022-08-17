@@ -148,20 +148,27 @@ class Sprite:
         self.cy = self.h // 2 - 1
         self.visible = False
 
-        self.parent = parent  # 親スプライト
         self.sprite_list = []  # 子スプライトのリスト
-        if parent is not None:
-            self.stage = parent.stage  # ステージのショートカット
-            self.scene = parent.stage.scene  # シーンのショートカット
-            parent.add_sprite(self)  # 親に追加
-        else:
+
+        self.set_parent(parent) # 親スプライト
+        self.set_anime_param()  # フレームアニメ
+
+    def set_parent(self, parent)
+    """親スプライトをセット"""
+        if parent is None:
             self.stage = None
             self.scene = None
+            return
+        self.parent = parent  # 親スプライト
+        self.stage = parent.stage  # ステージのショートカット
+        self.scene = parent.stage.scene  # シーンのショートカット
+        parent.add_sprite(self)  # 親に追加
 
-        # フレームアニメ
-        self.frame_max = 1  # フレーム数
-        self.frame_index = 0  # フレームのインデックス
-        self.frame_wait = 4  # フレームのウェイト
+    def set_anime_param(self, max=1, wait=4):
+        """フレームアニメ用パラメータ"""
+        self.frame_max = max
+        self.frame_wait = wait
+        self.frame_index = 0
 
     def show(self, frame_buffer, x, y):
         """フレームバッファに描画
@@ -223,7 +230,8 @@ class Sprite:
 
     def add_sprite(self, sp):
         """スプライト追加
-        z順になるように
+        z順になるように.
+        すでにあったら追加しない.
 
         Params:
             sp (Sprite): スプライト
@@ -231,6 +239,10 @@ class Sprite:
         if self.sprite_list == 0:
             self.sprite_list.append(sp)
             return
+
+        for s in self.sprite_list:
+            if s is sp:
+                return
 
         # z昇順・新規は後ろに追加
         for i, s in enumerate(self.sprite_list):
@@ -243,17 +255,33 @@ class Sprite:
 
     def remove_sprite(self, sp):
         """スプライト削除
+        親から切り離す
 
         Params:
             sp (Sprite): スプライト
         """
-        for i in range(len(self.sprite_list)- 1, -1, -1):
+        for i in range(len(self.sprite_list) - 1, -1, -1):
             if self.sprite_list[i] is sp:
                 del self.sprite_list[i]
+                sp.parent = None
+                sp.stage = None
+                sp.scene = None
+                return
+
+    def remove_all_sprites(self):
+        """全てのスプライト削除"""
+
+        for sp in self.sprite_list:
+            sp.remove_all_sprites()
+            sp.parent = None
+            sp.stage = None
+            sp.scene = None
+
+        self.sprite_list.clear()
 
     def enter(self):
         """入場
-        イベントリスナーの登録等
+        イベントリスナーの登録, その他初期化処理.
         """
         for sp in self.sprite_list:
             sp.enter()
@@ -263,22 +291,15 @@ class Sprite:
 
     def leave(self):
         """退場
-        ・親から削除
-        ・イベントリスナーの削除
-        もう使用しない
+        ・イベントリスナーの削除, その他終了処理.
         """
-
         for sp in self.sprite_list:
-            sp.leave()
-            del sp
-        self.sprite_list.clear()
+            sp.leave() # 子スプライトも退場
 
-        if self.parent is not None:
-            self.parent.remove_sprite(self)
-            self.parent = None
+        # 親から削除
+        if parent is not None:
+            parent.remove_sprite(self)
         
-        self.stage = None
-        self.scene = None
         self.visible = False
 
     def abs_x(self):
@@ -292,6 +313,10 @@ class Sprite:
         if self.parent == None:
             return self.y
         return self.y + self.abs_y()
+
+    del __del__(self):
+    """デバッグ用"""
+    print("del:%" %self.name)
 
 
 class SpriteContainer(Sprite):
@@ -320,7 +345,8 @@ class SpriteContainer(Sprite):
 
 class Stage(Sprite):
     """ステージ
-    LCDバッファにスプライトを描画するスプライトのルートオブジェクト.
+    LCDバッファにスプライトを描画する.
+    スプライトのルートオブジェクト.
     ルートなので parent は None となる.
 
     Params:
@@ -334,7 +360,7 @@ class Stage(Sprite):
         h (int): 高さ
 
     Attributes:
-        chr_no (int): 画像No image_buffers に対応した番号
+        chr_no (int): 画像No image_buffers に対応した番号<無効>
         name (str or int): キャラクタ識別の名前
         x (int): X座標
         y (int): Y座標
@@ -404,7 +430,7 @@ class Anime:
 
     def attach(self):
         """アニメーションを使用可能に"""
-        self.event.listners.append((EV_ENTER_FRAME, self))
+        self.event.add_listner([EV_ENTER_FRAME, self, True])
 
     def detach(self):
         """使用できないように"""
@@ -449,7 +475,7 @@ class EventManager:
 
     Attributes:
         queue (list): イベントキュー
-        listners (tuple): イベントリスナー 0:type 1:obj
+        listners (list): イベントリスナー 0:type 1:obj 2:bool
     """
 
     def __init__(self):
@@ -490,11 +516,67 @@ class EventManager:
         """リスナーをクリア"""
         self.listners.clear()
 
+    def enable_listners(self, targets=None, ignores=None):
+        """全てのリスナーを有効化
+        
+        Params:
+            target (list): 対象イベントタイプ
+            ignore (list): 除外イベントタイプ
+        """
+        # 全て対象
+        if targets is None and ignores is None:
+            for ls in self.listners:
+                ls[2] = True
+        # 対象リスト
+        if targets is not None:
+            for ls in self.listners:
+                if ls[0] in targets:
+                    ls[2] = True
+        # 無視リスト
+        if ignores is not None:
+            for ls in self.listners:
+                if ls[0] not in ignores:
+                    ls[2] = True
+
+    def disable_listners(self, targets=None, ignores=None):
+        """全てのリスナーを無効化
+                
+        Params:
+            target (list): 対象イベントタイプ
+            ignore (list): 除外イベントタイプ
+        """
+        # 全て対象
+        if targets is None and ignores is None:
+            for ls in self.listners:
+                ls[2] = False
+        # 対象リスト
+        if targets is not None:
+            for ls in self.listners:
+                if ls[0] in targets:
+                    ls[2] = False
+        # 無視リスト
+        if ignores is not None:
+            for ls in self.listners:
+                if ls[0] not in ignores:
+                    ls[2] = False
+
+    def add_listner(self, listner):
+        """リスナー追加
+        すでにあったら追加しない
+
+        Params:
+            listner (list): 0:type 1:リスナーを持つオブジェクト 2: 有効か
+        """
+        for li in self.listners:
+            li[0] == listner[0] and li[1] == listner[1]:
+            return
+        self.listners.append(listner)
+
     def remove_lister(self, listner):
         """リスナーを削除
 
         Params:
-            listner (tuple): 0:type 1:リスナーを持つオブジェクト
+            listner (list): 0:type 1:リスナーを持つオブジェクト 2: 有効か
         """
         for i in range(len(self.listners) - 1, -1, -1):
             if self.listners[i][0] == listner[0] and self.listners[i][1] is listner[1]:
@@ -528,7 +610,7 @@ class EventManager:
             event (list): 0:type 1:priority 2:delay 3:sender 4:optiion
         """
         for listner in self.listners:
-            if event[0] == listner[0]:
+            if event[0] == listner[0] and lister[2]: # 有効なリスナーのみ
                 # コールバック呼び出し
                 getattr(listner[1], event[0])(event[0], event[3], event[4])
 

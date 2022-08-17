@@ -27,7 +27,7 @@ class MainScene(gl.Scene):
         self.register(stage, event, key)
 
         # イベントリスナー
-        event.listners.append((c.EV_GAMEOVER, self))
+        event.add_listner([c.EV_GAMEOVER, self, True])
         # スプライト作成
         self.ship = Ship(
             stage, c.CHR_SHIP, "ship", 0, 0, 100, c.SHIP_WIDTH, c.SHIP_HEIGHT
@@ -39,8 +39,9 @@ class MainScene(gl.Scene):
         """ゲームの初期化処理"""
         # イベントのクリア
         self.event.clear_queue()
+        # 全てのリスナーを有効
+        self.event.enable_listners()
         # ステータス初期化
-        self.play_status = c.PLAY  # ゲームプレイ中フラグ
         game_status["lines"] = 0
         game_status["score"] = 0
         game_status["lv"] = 1
@@ -249,7 +250,7 @@ class Ship(gl.Sprite):
         self.move_anime = gl.Anime(self.scene.event, ease.out_quart)  # 移動アニメ
         self.move_anime.attach()  # アニメ有効化
         # イベントリスナー登録
-        self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
+        self.scene.event.add_listner([gl.EV_ENTER_FRAME, self, True])
 
     def enter(self):
         self.fire_panel_num = 0  # 現在の発射数
@@ -331,8 +332,8 @@ class FieldMap:
         self.stage = stage
         self.scene = stage.scene
         # イベントリスナー登録
-        self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
-        self.scene.event.listners.append((c.EV_DELETE_LINE, self))  # ライン消去
+        self.scene.event.add_listner([gl.EV_ENTER_FRAME, self, True])
+        self.scene.event.add_listner([c.EV_DELETE_LINE, self, True])  # ライン消去
 
         # フィールドマップ パネルの配置 2次元マップ
         self.fieldmap = [
@@ -506,11 +507,13 @@ class FieldMap:
                     [
                         c.EV_GAMEOVER,
                         gl.EV_PRIORITY_HI,
-                        0,
+                        30, # タイムラグ 1秒後
                         self,
                         None,
                     ]
                 )
+                # ゲームオーバー以外のリスナーをオフにする
+                self.scene.event.disable_listers(None,[c.EV_GAMEOVER])
                 return True
 
         return False
@@ -603,7 +606,7 @@ class ShotPanel(gl.Sprite):
 
     def __init__(self, parent, chr_no, name, x, y, z, w, h):
         super().__init__(parent, chr_no, name, x, y, z, w, h)
-        self.scene.event.listners.append((gl.EV_ENTER_FRAME, self))
+        self.scene.event.add_listner([gl.EV_ENTER_FRAME, self, True])
 
     def enter(self):
         super().enter()

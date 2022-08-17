@@ -86,8 +86,3 @@ EV_DELETE_LINE = "event_delete_line"
 """ライン消去"""
 EV_GAMEOVER = "event_gameover"
 """ゲームオーバー"""
-
-PLAY = 1
-"""ゲームステータス: プレイ中"""
-OVER = 2
-"""ゲームステータス: ゲームオーバー"""
