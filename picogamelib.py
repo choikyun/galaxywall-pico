@@ -26,24 +26,26 @@ import io
 import json
 import utime
 import framebuf as buf
+import random
 import gc
+from micropython import const
 
 import picolcd114 as pl
 
 # 標準イベント
-EV_ENTER_FRAME = "event_enter_frame"
+EV_ENTER_FRAME = const("event_enter_frame")
 """イベント 毎フレーム"""
-EV_SCENE_START = "event_scene_start"
+EV_SCENE_START = const("event_scene_start")
 """シーン開始"""
-EV_SCENE_END = "event_scene_end"
+EV_SCENE_END = const("event_scene_end")
 """シーン終了"""
 
 # イベント プライオリティ
-EV_PRIORITY_HI = 10
-EV_PRIORITY_MID = 50
-EV_PRIORITY_LOW = 100
+EV_PRIORITY_HI = const(10)
+EV_PRIORITY_MID = const(50)
+EV_PRIORITY_LOW = const(100)
 
-DEFAULT_FPS = 30
+DEFAULT_FPS = const(30)
 """デフォルトFPS"""
 
 image_buffers = []
@@ -107,16 +109,6 @@ class Sprite:
     座標は親スプライトからの相対位置となる.
     parent を設定すると生成時に親のリスト登録する（表示される）
 
-    Params:
-        parent (Sprite): 親のスプライト
-        chr_no (int): 画像No image_buffers に対応した番号
-        name (str or int): キャラクタ識別の名前 ユニークであること
-        x (int): X座標（親からの相対座標）
-        y (int): Y座標（親からの相対座標）
-        z (int): Z座標 小さい順に描画
-        w (int): 幅
-        h (int): 高さ
-
     Attributes:
         parent (Sprite): 親のスプライト
         chr_no (int): 画像No image_buffers に対応した番号
@@ -137,7 +129,22 @@ class Sprite:
         frame_wait (int): アニメ用フレーム切り替えウェイト
     """
 
-    def __init__(self, parent, chr_no, name, x, y, z, w, h):
+    def __init__(self):
+        self.sprite_list = []  # 子スプライトのリスト
+
+    def init_params(self, parent, chr_no, name, x, y, z, w, h):
+        """パラメータを初期化
+
+        Params:
+            parent (Sprite): 親のスプライト
+            chr_no (int): 画像No image_buffers に対応した番号
+            name (str or int): キャラクタ識別の名前 ユニークであること
+            x (int): X座標（親からの相対座標）
+            y (int): Y座標（親からの相対座標）
+            z (int): Z座標 小さい順に描画
+            w (int): 幅
+            h (int): 高
+        """
         self.chr_no = chr_no
         self.name = name
         self.x = x
@@ -147,26 +154,24 @@ class Sprite:
         self.h = h
         self.cx = self.w // 2 - 1
         self.cy = self.h // 2 - 1
-        self.visible = False
+        self.visible = True
 
-        self.sprite_list = []  # 子スプライトのリスト
+        self.init_parent(parent)  # 親スプライト
+        self.init_anime_param()  # フレームアニメ
 
-        self.set_parent(parent)  # 親スプライト
-        self.set_anime_param()  # フレームアニメ
-
-    def set_parent(self, parent):
-        """親スプライトをセット"""
+    def init_parent(self, parent):
+        """親スプライトを初期化"""
         if parent is None:
             self.stage = None
             self.scene = None
             return
         self.parent = parent  # 親スプライト
-        self.stage = parent.stage  # ステージのショートカット
-        self.scene = parent.stage.scene  # シーンのショートカット
+        self.stage = parent.stage  # ステージ
+        self.scene = parent.stage.scene  # シーン
         parent.add_sprite(self)  # 親に追加
 
-    def set_anime_param(self, max=1, wait=4):
-        """フレームアニメ用パラメータ"""
+    def init_anime_param(self, max=1, wait=4):
+        """フレームアニメ用パラメータを初期化"""
         self.frame_max = max
         self.frame_wait = wait
         self.frame_index = 0
@@ -283,12 +288,10 @@ class Sprite:
     def enter(self):
         """入場
         イベントリスナーの登録, その他初期化処理.
+        enter 時は parent は None なので注意.
         """
         for sp in self.sprite_list:
             sp.enter()
-
-        # アクション・表示 を ON
-        self.visible = True
 
     def leave(self):
         """退場
@@ -300,8 +303,6 @@ class Sprite:
         # 親から削除
         if self.parent is not None:
             self.parent.remove_sprite(self)
-
-        self.visible = False
 
     def abs_x(self):
         """絶対座標 X"""
@@ -325,8 +326,20 @@ class SpriteContainer(Sprite):
     自身は描画しない.子スプライトのみ.
     """
 
-    def __init__(self, parent, name, x, y, z):
-        super().__init__(parent, 0, name, x, y, z, 0, 0)
+    def __init__(self):
+        super().__init__()
+    
+    def init_params(self, parent, name, x, y, z):
+        """パラメータを初期化
+
+        Params:
+            parent (Sprite): 親のスプライト
+            name (str or int): キャラクタ識別の名前 ユニークであること
+            x (int): X座標（親からの相対座標）
+            y (int): Y座標（親からの相対座標）
+            z (int): Z座標 小さい順に描画
+        """
+        super().init_params(parent, 0, name, x, y, z, 0, 0)
 
     def show(self, frame_buffer, x, y):
         """子スプライトのみフレームバッファに描画
@@ -344,47 +357,81 @@ class SpriteContainer(Sprite):
                 sp.show(frame_buffer, x, y)
 
 
+class SpritPool():
+    """スプライトプール
+    スプライトを直接生成しないでプールから取得.
+    使用後は返却.
+
+    Params:
+        stage (Stage): 所属するステージ
+        name (str): クラス名
+        size (int): プールのサイズ
+
+    Attributes:
+        name (str): クラス名
+        size (int): プールのサイズ
+        pool (list): スプライトのリスト
+    """
+
+    def __init__(self, stage, name, size=32):
+        self.stage = stage
+        self.size = size
+        self.name = name
+        self.pool = []
+        # プール作成
+        for i in range(size):
+            sp = globals()[name]()
+            sp.parent = None
+            sp.stage = stage
+            sp.scene = stage.scene
+            self.pool.appent(sp)
+
+    def get_instance(self):
+        """インスタンスを取得"""
+        if len(self.pool) == 0:
+            o = globals()[name]() # プールが空の時は新規作成
+            o.parent = None
+            o.stage = self.stage
+            o.scene = self.stage.scene
+            o.enter()
+            return o 
+        else:
+            o = self.pool.pop()
+            o.enter()
+            return o
+
+    def return_instance(self, sp):
+        """インスタンスを返却"""
+        sp.leave()
+        self.pool.append(sp)
+
+
 class Stage(Sprite):
     """ステージ
     LCDバッファにスプライトを描画する.
     スプライトのルートオブジェクト.
     ルートなので parent は None となる.
-
-    Params:
-        scene (Scene): 親になるシーン
-        chr_no (int): 画像No image_buffers に対応した番号
-        name (str or int): キャラクタ識別の名前
-        x (int): X座標
-        y (int): Y座標
-        z (int): Z座標 大きい程上に表示
-        w (int): 幅
-        h (int): 高さ
-
-    Attributes:
-        chr_no (int): 画像No image_buffers に対応した番号<無効>
-        name (str or int): キャラクタ識別の名前
-        x (int): X座標
-        y (int): Y座標
-        z (int): Z座標 大きい程上に表示
-        w (int): 幅
-        h (int): 高さ
-        cx (int): X中心
-        cy (int): Y中心
-        visible (bool): 表示するか
-        sprite_list (list): 子スプライトのリスト
-        frame_max (int): アニメ用フレーム数
-        frame_index (int): アニメ用フレームのインデックス
-        frame_wait (int): アニメ用フレーム切り替えウェイト
-        scene (Scene) 親のシーン
-        stage (Stage) 自分自身
     """
 
-    def __init__(self, scene, chr_no, name, x, y, z, w, h):
-        super().__init__(None, chr_no, name, x, y, z, w, h)
+    def __init__(self, scene, name, x, y, z, w, h):
+        super().__init__()
+        self.init_params(self, scene, name, x, y, z, w, h)
 
+    def init_params(self, scene, name, x, y, z, w, h):
+        """パラメータをセット
+
+        Params:
+            name (str or int): キャラクタ識別の名前 ユニークであること
+            x (int): X座標（親からの相対座標）
+            y (int): Y座標（親からの相対座標）
+            z (int): Z座標 小さい順に描画
+            w (int): 幅
+            h (int): 高
+        """
+        super().init_params(None, 0, name, x, y, z, w, h)
         # ステージ 自分自身
         self.stage = self
-        # 親になるシーン
+        # シーン
         self.scene = scene
 
     def show(self):
@@ -670,7 +717,12 @@ class Scene:
         t = utime.ticks_ms()
         if utime.ticks_diff(t, self.fps_ticks) < self.fps_interval:  # FPS
             self.active = False
+            # gc 実行
+            if random.randint(0, DEFAULT_FPS * 5) == 0:
+                gc.collect()
+                print(gc.mem_alloc()) #debug
             return
+
         self.fps_ticks = t
         self.active = True
         self.frame_count += 1
