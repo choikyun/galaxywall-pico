@@ -24,8 +24,6 @@ COLOR_STEP = const(3)
 
 # スコア
 SCORE_DIGIT = const(6)
-SCORE_W = const(20)
-SCORE_H = const(20)
 
 LINE_DIGIT = const(4)
 DEF_LINES = const(6)
@@ -39,6 +37,7 @@ PANEL_OFFSET_INIT = const(20)
 PANEL_MAX = const(5)
 COLOR_MAX = const(6)
 
+DEF_DEAD_X = const(24)
 DEAD_W = const(4)
 DEAD_H = const(132)
 

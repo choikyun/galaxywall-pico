@@ -20,7 +20,7 @@ class MainScene(gl.Scene):
     def __init__(self, name, key):
         super().__init__(name)
         # ステージ
-        stage = MainStage(self, 0, "", 0, 0, 0, pl.LCD_W, pl.LCD_H)
+        stage = MainStage(self, "", 0, 0, 0, pl.LCD_W, pl.LCD_H)
         # イベントマネージャ
         event = gl.EventManager()
         # 登録
@@ -29,13 +29,11 @@ class MainScene(gl.Scene):
         # イベントリスナー
         event.add_listner([c.EV_GAMEOVER, self, True])
         # スプライト作成
-        self.ship = Ship()
-        self.ship.init_params(
+        self.ship = Ship(
             stage, c.CHR_SHIP, "ship", 0, 0, 200, c.SHIP_W, c.SHIP_H
         )
-        self.deadline = DealLine()
-        self.deadline.init_params(
-            stage, c.CHR_DEADLINE, "deadline", 0, 0, 100, c.DEAD_W, c.DEAD_H
+        self.deadline = DeadLine(
+            stage, c.CHR_DEADLINE, "deadline", c.DEF_DEAD_X, 0, 100, c.DEAD_W, c.DEAD_H
         )
         # フィールド作成
         self.fieldmap = FieldMap(stage, c.FIELD_W, c.FIELD_H)
@@ -84,7 +82,7 @@ class PauseScene(gl.Scene):
     def __init__(self, name, key):
         super().__init__(name)
         # ステージ
-        stage = gl.Stage(self, 0, "", 0, 0, 0, pl.LCD_W, pl.LCD_H)
+        stage = gl.Stage(self, "", 0, 0, 0, pl.LCD_W, pl.LCD_H)
         # イベントマネージャ
         event = gl.EventManager()
         # 登録
@@ -105,8 +103,8 @@ class PauseScene(gl.Scene):
             c.SCORE_H,
         )
         self.hi = gl.Sprite()
-        self.hi.params(stage, c.CHR_HI, "hi", 70, 66, 1, c.HI_W, c.HI_H)
-        self.info = Sprite()
+        self.hi.init_params(stage, c.CHR_HI, "hi", 70, 66, 1, c.HI_W, c.HI_H)
+        self.info = gl.Sprite()
         self.info.init_params(
             stage,
             c.CHR_INFO_BRIGHT,
@@ -166,7 +164,7 @@ class OverScene(gl.Scene):
     def __init__(self, name, key):
         super().__init__(name)
         # ステージ
-        stage = gl.Stage(self, 0, "", 0, 0, 0, pl.LCD_W, pl.LCD_H)
+        stage = gl.Stage(self, "", 0, 0, 0, pl.LCD_W, pl.LCD_H)
         # イベントマネージャ
         event = gl.EventManager()
         # 登録
@@ -247,9 +245,9 @@ class MainStage(gl.Stage):
     def __init__(self, scene, name, x, y, z, w, h):
         super().__init__(scene, name, x, y, z, w, h)
         # パネルのプール
-        self.panel_pool = gl.SpritePool('Panel', 50)
+        self.panel_pool = gl.SpritePool(self, globals()['Panel'], 50)
         # ショットのプール
-        self.shot_pool = gl.ShotPanelPool('ShotPanel', 2)
+        self.shot_pool = gl.SpritePool(self, globals()['ShotPanel'], 2)
 
 
 class Ship(gl.Sprite):
@@ -282,7 +280,8 @@ class Ship(gl.Sprite):
             return
         self.fire_panel_num += 1
         # 新しい弾
-        shot = self.stage.shot_pool.get_instance().init_params(
+        shot = self.stage.shot_pool.get_instance()
+        shot.init_params(
             self.stage,
             c.CHR_SHOT,
             "shot",
@@ -363,7 +362,7 @@ class FieldMap:
         # コンボ
         self.combo = 0
         # ここに来たらゲームオーバー
-        self.deadline = 0
+        self.deadline = 1
 
         # フィールド初期化
         self.clear()
@@ -376,10 +375,9 @@ class FieldMap:
         """
         for y in range(c.FIELD_H):
             for x in range(c.FIELD_W):
-                map = self.fieldmap[y][x]
-                if map is not None:
-                    self.stage.panel_pool.return_instance(map) # プールに返却
-                    map = None
+                if self.fieldmap[y][x] is not None:
+                    self.stage.panel_pool.return_instance(self.fieldmap[y][x]) # プールに返却
+                    self.fieldmap[y][x] = None
 
     def set_new_line(self, x=c.FIELD_W - 1):
         """新しいラインを作成"""
@@ -402,8 +400,8 @@ class FieldMap:
         """新しいパネルをセット"""
         sp_x = x * c.PANEL_W
         sp_y = y * (c.PANEL_H + c.PANEL_BLANK_Y)
-        map = self.fieldmap[y][x]
-        map = self.stage.panel_pool.get_instance().init_params(
+        self.fieldmap[y][x] = self.stage.panel_pool.get_instance()
+        self.fieldmap[y][x].init_params(
             self.stage,
             color + c.CHR_PANEL,
             "panel",
@@ -446,21 +444,18 @@ class FieldMap:
             tmp = self.fieldmap[i][x]
             self.fieldmap[i][x] = self.fieldmap[y][x]
             self.fieldmap[y][x] = tmp
-
         # Y座標決定
         for y in range(c.FIELD_H):
-            map = self.fieldmap[y][x]
-            if map is not None:
-                map.y = y * (c.PANEL_H + c.PANEL_BLANK_Y)
+            if self.fieldmap[y][x] is not None:
+                self.fieldmap[y][x].y = y * (c.PANEL_H + c.PANEL_BLANK_Y)
 
     def __get_panel_color(self, x):
         """パネルの色を取得
         無効な弾はグレー
         """
         for y in range(c.FIELD_H):
-            map = self.fieldmap[y][x]
-            if map is not None:
-                return map.chr_no - c.CHR_PANEL
+            if self.fieldmap[y][x] is not None:
+                return self.fieldmap[y][x].chr_no - c.CHR_PANEL
         # 見つからない場合はグレー
         return c.CHR_PANELX - c.CHR_PANEL
 
@@ -476,10 +471,9 @@ class FieldMap:
                 return
 
         for y in range(c.FIELD_H):
-            map = self.fieldmap[y][x]
-            map.flash = True
-            if map.chr_no < c.CHR_PANELX:
-                map.chr_no = c.CHR_FLASH
+            self.fieldmap[y][x].flash = True
+            if self.fieldmap[y][x].chr_no < c.CHR_PANELX:
+                self.fieldmap[y][x].chr_no = c.CHR_FLASH
 
         # ライン消去のイベント
         self.scene.event.post(
@@ -504,10 +498,9 @@ class FieldMap:
         """フィールドマップとスプライトの更新"""
         for y in range(c.FIELD_H):
             for x in range(c.FIELD_W - 1):
-                map = self.fieldmap[y][x]
-                map = self.fieldmap[y][x + 1]  # 1キャラクタ分スクロール
-                if map is not None:
-                    map.base_x -= c.PANEL_W  # ベース座標の更新
+                self.fieldmap[y][x] = self.fieldmap[y][x + 1]  # 1キャラクタ分スクロール
+                if self.fieldmap[y][x] is not None:
+                    self.fieldmap[y][x].base_x -= c.PANEL_W  # ベース座標の更新
 
     def __check_over(self):
         """ゲームオーバーか
@@ -556,39 +549,34 @@ class FieldMap:
         # パネルスプライトを更新
         for y in range(c.FIELD_H):
             for x in range(c.FIELD_W):
-                map = self.fieldmap[y][x]
-                if map is not None:
-                    map.x = (
-                        map.base_x + self.scroll_offset
+                if self.fieldmap[y][x] is not None:
+                    self.fieldmap[y][x].x = (
+                        self.fieldmap[y][x].base_x + self.scroll_offset
                     )
 
     def event_delete_line(self, type, sender, option):
         """ライン消去"""
         for pos in range(c.FIELD_W):
-            map = self.fieldmap[0][pos]
-            if map is option:  # X座標を取得
-                chr_no = map.chr_no
+            if self.fieldmap[0][pos] is option:  # X座標を取得
+                chr_no = self.fieldmap[0][pos].chr_no
                 break
 
         # 1列削除
         for y in range(c.FIELD_H):
-            map = self.fieldmap[y][pos]
-            self.stage.panel_pool.return_instance(map) # プールに返却
-            map = None
+            self.stage.panel_pool.return_instance(self.fieldmap[y][pos]) # プールに返却
+            self.fieldmap[y][pos] = None
 
         # 詰める
         for y in range(c.FIELD_H):
             for x in range(pos, 0, -1):
-                map = self.fieldmap[y][x]
-                map = self.fieldmap[y][x - 1]
-                if map is not None:
-                    map.base_x += c.PANEL_W
+                self.fieldmap[y][x] = self.fieldmap[y][x - 1]
+                if self.fieldmap[y][x] is not None:
+                    self.fieldmap[y][x].base_x += c.PANEL_W
 
         # 先頭は空
         for y in range(c.FIELD_H):
-            map = self.fieldmap[y][0]
-            if map is not None:
-                map = None
+            if self.fieldmap[y][0] is not None:
+                self.fieldmap[y][0] = None
 
         # コンボひとつ終了
         if chr_no != c.CHR_FLASH:
@@ -598,10 +586,10 @@ class FieldMap:
 class Panel(gl.Sprite):
     """迫りくるパネル"""
 
-    def __init__():
+    def __init__(self):
         super().__init__()
 
-    def init_patams(self, parent, chr_no, name, x, y, z, w, h):
+    def init_params(self, parent, chr_no, name, x, y, z, w, h):
         super().init_params(parent, chr_no, name, x, y, z, w, h)
         # ベースのX座標
         self.base_x = x
@@ -629,7 +617,7 @@ class Panel(gl.Sprite):
 class ShotPanel(gl.Sprite):
     """自機の打ち出すパネル"""
 
-    def __init__():
+    def __init__(self):
         super().__init__()
 
     def enter(self):
@@ -661,7 +649,7 @@ class DeadLine(gl.Sprite):
     def __init__(self, parent, chr_no, name, x, y, z, w, h):
         super().__init__()
         self.init_params(parent, chr_no, name, x, y, z, w, h)
-        self.interval = DEAD_INTERAL # せり上がるまで
+        self.interval = c.DEAD_INTERVAL # せり上がるまで
         self.scene.event.add_listner([gl.EV_ENTER_FRAME, self, True])
 
     def enter(self):
@@ -695,8 +683,8 @@ class ScoreNum(gl.SpriteContainer):
         self.score = []
         for i in range(digit):
             # 桁数分の数字スプライト
-            self.score.append(
-                gl.Sprite(
+            num = gl.Sprite()
+            num.init_params(
                     self,
                     c.CHR_NUM,
                     "",
@@ -704,9 +692,9 @@ class ScoreNum(gl.SpriteContainer):
                     0,
                     100,
                     c.NUM_W,
-                    c.NUM_H,
+                    c.NUM_H
                 )
-            )
+            self.score.append(num)
 
     def enter(self):
         super().enter()

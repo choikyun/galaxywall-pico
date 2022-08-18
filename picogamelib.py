@@ -216,7 +216,7 @@ class Sprite:
         Params:
             sp (Sprite): スプライト
         Returns:
-            当たっているか
+            bool: 当たっているか
         """
         # 絶対座標を取得
         px = self.parent_x()
@@ -316,11 +316,6 @@ class Sprite:
             return self.y
         return self.y + self.abs_y()
 
-    def __del__(self):
-        """デバッグ用"""
-        print("del:%" % self.name)
-
-
 class SpriteContainer(Sprite):
     """スプライトのコンテナ
     自身は描画しない.子スプライトのみ.
@@ -357,39 +352,39 @@ class SpriteContainer(Sprite):
                 sp.show(frame_buffer, x, y)
 
 
-class SpritPool():
+class SpritePool():
     """スプライトプール
     スプライトを直接生成しないでプールから取得.
     使用後は返却.
 
     Params:
         stage (Stage): 所属するステージ
-        name (str): クラス名
+        name (str): クラス
         size (int): プールのサイズ
 
     Attributes:
-        name (str): クラス名
+        name (str): クラス
         size (int): プールのサイズ
         pool (list): スプライトのリスト
     """
 
-    def __init__(self, stage, name, size=32):
+    def __init__(self, stage, clz, size=32):
         self.stage = stage
         self.size = size
-        self.name = name
+        self.clz = clz
         self.pool = []
         # プール作成
         for i in range(size):
-            sp = globals()[name]()
+            sp = clz()
             sp.parent = None
             sp.stage = stage
             sp.scene = stage.scene
-            self.pool.appent(sp)
+            self.pool.append(sp)
 
     def get_instance(self):
         """インスタンスを取得"""
         if len(self.pool) == 0:
-            o = globals()[name]() # プールが空の時は新規作成
+            o = self.clz() # プールが空の時は新規作成
             o.parent = None
             o.stage = self.stage
             o.scene = self.stage.scene
@@ -397,6 +392,9 @@ class SpritPool():
             return o 
         else:
             o = self.pool.pop()
+            o.parent = None
+            o.stage = self.stage
+            o.scene = self.stage.scene
             o.enter()
             return o
 
@@ -415,7 +413,7 @@ class Stage(Sprite):
 
     def __init__(self, scene, name, x, y, z, w, h):
         super().__init__()
-        self.init_params(self, scene, name, x, y, z, w, h)
+        self.init_params(scene, name, x, y, z, w, h)
 
     def init_params(self, scene, name, x, y, z, w, h):
         """パラメータをセット
@@ -718,7 +716,7 @@ class Scene:
         if utime.ticks_diff(t, self.fps_ticks) < self.fps_interval:  # FPS
             self.active = False
             # gc 実行
-            if random.randint(0, DEFAULT_FPS * 5) == 0:
+            if random.randint(0, DEFAULT_FPS * 30) == 0:
                 gc.collect()
                 print(gc.mem_alloc()) #debug
             return
