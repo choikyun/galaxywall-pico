@@ -32,7 +32,7 @@ class MainScene(gl.Scene):
         self.ship = Ship(
             stage, c.CHR_SHIP, "ship", 0, 0, 200, c.SHIP_W, c.SHIP_H
         )
-        self.deadline = gl.Sprite(
+        self.deadline = DeadLine(
             stage, c.CHR_DEADLINE, "deadline", 0, 0, 100, c.DEAD_W, c.DEAD_H
         )
         # フィールド作成
@@ -644,7 +644,7 @@ class DeadLine(gl.Sprite):
 
     def __init__(self, parent, chr_no, name, x, y, z, w, h):
         super().__init__(parent, chr_no, name, x, y, z, w, h)
-        self.interval = DEAD_INTERAL # せり上がるまで
+        self.interval = c.DEAD_INTERVAL # せり上がるまで
 
 
         self.scene.event.add_listner([gl.EV_ENTER_FRAME, self, True])
