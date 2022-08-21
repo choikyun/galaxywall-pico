@@ -17,8 +17,13 @@ SHOT_SPEED = const(10)
 FIELD_W = const(12)
 FIELD_H = const(6)
 
+READY_W = const(108)
+READY_H = const(24)
+
 # レベル
 LEVEL_MAX = const(5)
+# レベルアップの間隔
+LEVEL_UP_INTERVAL = const(10)
 # 3ラインで色が変わる
 COLOR_STEP = const(3)
 
@@ -48,23 +53,31 @@ SCROLL_STOP_TIME = const(30)  # 一定時間停止
 # 点滅
 FLASH_INTERVAL = const(4)
 
+# メッセージ
+MES_DURATION = const(30 * 2)
+MES_INTERVAL = const(6)
+
 # 1列消去の遅延時間
 DELETE_DELAY = const(30)
 
 # キャラクタ
+# メイン
 CHR_SHIP = const(0)
 CHR_PANEL = const(3)
 CHR_PANELX = const(9)
 CHR_FLASH = const(10)
 CHR_SHOT = const(11)
+CHR_DEADLINE = const(12)
+CHR_NUM = const(13)
 
-CHR_HI = const(12)
-CHR_SCORE = const(13)
-CHR_LINES = const(14)
-CHR_INFO_BRIGHT = const(15)
-CHR_OVER = const(16)
-CHR_NUM = const(17)
-CHR_DEADLINE = const(27)
+BMP_TITLE = const(0)
+BMP_OVER = const(1)
+BMP_HI = const(2)
+BMP_SCORE = const(3)
+BMP_LINES = const(4)
+BMP_INFO_BRIGHT = const(5)
+BMP_READY = const(6)
+BMP_CREDIT = const(7)
 
 # ポーズ画面
 SCORE_W = const(84)
@@ -85,6 +98,13 @@ OVER_H = const(24)
 
 # デッドライン
 DEAD_INTERVAL = const(120)
+
+# タイトル
+TITLE_W = const(240)
+TITLE_H = const(70)
+
+CREDIT_W = const(168)
+CREDIT_H = const(14)
 
 # イベント
 EV_CHECK_HIT = const("event_check_hit_panel")

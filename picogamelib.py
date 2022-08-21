@@ -28,6 +28,7 @@ import utime
 import framebuf as buf
 import random
 import gc
+import micropython
 from micropython import const
 
 import picolcd114 as pl
@@ -77,13 +78,13 @@ def save_status(d):
         pass
 
 
-def create_image_buffers(palet, index_images):
+def create_image_buffers(palette, index_images):
     """インデックスカラー から RGB565 のフレームバッファを作成
     スプライトが参照するイメージバッファ（RGB565）をキャラクタデータから作成する.
     LCDが小さいので縦横サイズは2倍にする.
 
     Params:
-        palet (list): パレット
+        palette (list): パレット
         index_images (list): 画像データ（インデックスカラー, w, h のタプル）のリスト
         1インデックスは 2x2 ピクセル
     """
@@ -96,8 +97,8 @@ def create_image_buffers(palet, index_images):
         pos = 0
         for y in range(0, h, 2):
             for x in range(0, w, 4):
-                buf565.fill_rect(x, y, 2, 2, palet[image[pos] & 0xF])
-                buf565.fill_rect(x + 2, y, 2, 2, palet[image[pos] >> 4])
+                buf565.fill_rect(x, y, 2, 2, palette[image[pos] & 0xF])
+                buf565.fill_rect(x + 2, y, 2, 2, palette[image[pos] >> 4])
                 pos += 1
         image_buffers.append(buf565)
 
@@ -131,6 +132,7 @@ class Sprite:
 
     def __init__(self):
         self.sprite_list = []  # 子スプライトのリスト
+        self.visible = False
 
     def init_params(self, parent, chr_no, name, x, y, z, w, h):
         """パラメータを初期化
@@ -144,6 +146,9 @@ class Sprite:
             z (int): Z座標 小さい順に描画
             w (int): 幅
             h (int): 高
+
+        Returns:
+            Sprite: 自分自身
         """
         self.chr_no = chr_no
         self.name = name
@@ -154,10 +159,11 @@ class Sprite:
         self.h = h
         self.cx = self.w // 2 - 1
         self.cy = self.h // 2 - 1
-        self.visible = True
 
         self.init_parent(parent)  # 親スプライト
         self.init_anime_param()  # フレームアニメ
+
+        return self # チェーンできるように
 
     def init_parent(self, parent):
         """親スプライトを初期化"""
@@ -272,6 +278,7 @@ class Sprite:
                 sp.parent = None
                 sp.stage = None
                 sp.scene = None
+                sp.visible = False
                 return
 
     def remove_all_sprites(self):
@@ -282,6 +289,7 @@ class Sprite:
             sp.parent = None
             sp.stage = None
             sp.scene = None
+            sp.visible = False
 
         self.sprite_list.clear()
 
@@ -292,6 +300,8 @@ class Sprite:
         """
         for sp in self.sprite_list:
             sp.enter()
+        
+        self.visible = True
 
     def leave(self):
         """退場
@@ -350,6 +360,58 @@ class SpriteContainer(Sprite):
             # 子スプライトの描画
             for sp in self.sprite_list:
                 sp.show(frame_buffer, x, y)
+
+class BitmapSprite(Sprite):
+    """ビットマップを直接描画するスプライト（低速）
+    
+    Params:
+        bitmap (taple): indexed-color, width, height
+    """
+    def __init__(self, parent, bitmap, name, x, y, z, w, h):
+        super().__init__()
+        self.init_params(parent, 0, name, x, y, z, w, h)
+        self.bitmap = bitmap
+
+    @micropython.native
+    def show(self, frame_buffer, x, y):
+        """フレームバッファに描画
+        自分自身のみ描画.
+
+        Params:
+            frame_buffer (FrameBuffer): 描画対象のバッファ(通常BG)
+            x (int): 親のX座標
+            y (int): 親のY座標
+        """
+        if self.visible:
+            x += self.x
+            y += self.y
+
+            bmp = memoryview(self.bitmap[0])
+            buf = memoryview(frame_buffer.buf)
+            w = self.bitmap[1]
+            h = self.bitmap[2]
+            
+            lcd_w = pl.LCD_W * 2
+            start = x * 2 + y * lcd_w
+
+            idx = 0
+            for dy in range(0, h, 2):
+                pos1 = dy * lcd_w + start
+                pos2 = pos1 + lcd_w
+                for dx in range(0, w * 2, 4):
+                    pos_x1 = pos1 + dx
+                    pos_x2 = pos2 + dx
+                    c1 = bmp[idx]
+                    c2 = bmp[idx + 1]
+                    buf[pos_x1] = c1
+                    buf[pos_x1 + 1] = c2
+                    buf[pos_x1 + 2] = c1
+                    buf[pos_x1 + 3] = c2
+                    buf[pos_x2] = c1
+                    buf[pos_x2 + 1] = c2
+                    buf[pos_x2 + 2] = c1
+                    buf[pos_x2 + 3] = c2
+                    idx += 2
 
 
 class SpritePool():
@@ -696,7 +758,7 @@ class Scene:
         self.frame_count = 0  # 経過フレーム
         self.director = None
 
-    def register(self, stage, event, key):
+    def registerStagehands(self, stage, event, key):
         """ステージ, イベント, キー入力 の登録"""
         self.stage = stage
         self.event = event
@@ -718,7 +780,6 @@ class Scene:
             # gc 実行
             if random.randint(0, DEFAULT_FPS * 30) == 0:
                 gc.collect()
-                print(gc.mem_alloc()) #debug
             return
 
         self.fps_ticks = t
@@ -799,7 +860,7 @@ class Director:
         if not self.scene_stack:
             return False
         self.is_playing = False
-        return self.scene_stack.pop()
+        self.scene_stack.pop()
 
     def stop(self):
         """シーン終了"""
