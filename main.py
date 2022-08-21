@@ -46,7 +46,9 @@ class MainScene(gl.Scene):
         self.event.enable_listners()
 
         # メッセージ表示
-        mes = BlinkMessage(self.stage, bmp_data[c.BMP_READY], "ready", 70, 50, 10000, 0, 0)
+        mes = BlinkMessage(
+            self.stage, bmp_data[c.BMP_READY], "ready", 70, 50, 10000, 0, 0
+        )
         mes.enter()
 
         # ステータス初期化
@@ -770,7 +772,7 @@ class BlinkMessage(gl.BitmapSprite):
         self.duration -= 1
         if self.duration == 0:
             # 削除
-            self.leave()            
+            self.leave()
 
 
 class ScoreNum(gl.SpriteContainer):

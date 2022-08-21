@@ -163,7 +163,7 @@ class Sprite:
         self.init_parent(parent)  # 親スプライト
         self.init_anime_param()  # フレームアニメ
 
-        return self # チェーンできるように
+        return self  # チェーンできるように
 
     def init_parent(self, parent):
         """親スプライトを初期化"""
@@ -300,7 +300,7 @@ class Sprite:
         """
         for sp in self.sprite_list:
             sp.enter()
-        
+
         self.visible = True
 
     def leave(self):
@@ -326,6 +326,7 @@ class Sprite:
             return self.y
         return self.y + self.abs_y()
 
+
 class SpriteContainer(Sprite):
     """スプライトのコンテナ
     自身は描画しない.子スプライトのみ.
@@ -333,7 +334,7 @@ class SpriteContainer(Sprite):
 
     def __init__(self):
         super().__init__()
-    
+
     def init_params(self, parent, name, x, y, z):
         """パラメータを初期化
 
@@ -361,12 +362,14 @@ class SpriteContainer(Sprite):
             for sp in self.sprite_list:
                 sp.show(frame_buffer, x, y)
 
+
 class BitmapSprite(Sprite):
     """ビットマップを直接描画するスプライト（低速）
-    
+
     Params:
         bitmap (taple): indexed-color, width, height
     """
+
     def __init__(self, parent, bitmap, name, x, y, z, w, h):
         super().__init__()
         self.init_params(parent, 0, name, x, y, z, w, h)
@@ -390,7 +393,7 @@ class BitmapSprite(Sprite):
             buf = memoryview(frame_buffer.buf)
             w = self.bitmap[1]
             h = self.bitmap[2]
-            
+
             lcd_w = pl.LCD_W * 2
             start = x * 2 + y * lcd_w
 
@@ -414,7 +417,7 @@ class BitmapSprite(Sprite):
                     idx += 2
 
 
-class SpritePool():
+class SpritePool:
     """スプライトプール
     スプライトを直接生成しないでプールから取得.
     使用後は返却.
@@ -446,12 +449,12 @@ class SpritePool():
     def get_instance(self):
         """インスタンスを取得"""
         if len(self.pool) == 0:
-            o = self.clz() # プールが空の時は新規作成
+            o = self.clz()  # プールが空の時は新規作成
             o.parent = None
             o.stage = self.stage
             o.scene = self.stage.scene
             o.enter()
-            return o 
+            return o
         else:
             o = self.pool.pop()
             o.parent = None
