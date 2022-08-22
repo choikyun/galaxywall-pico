@@ -341,12 +341,35 @@ class Ship(gl.Sprite):
         # イベントリスナー登録
         self.scene.event.add_listner([gl.EV_ENTER_FRAME, self, True])
 
+        # エネルギー表示スプライト
+        self.enelgy_bar = gl.ShapeSprite(parent, ('HLINE', 0, 159, c.MAX_ENERGY * c.ENERGY_STEP, c.ENERGY_COLOE_FULL), 1000)
+
     def enter(self):
         self.fire_panel_num = 0  # 現在の発射数
+        self.energy = c.MAX_ENERGY # エネルギー
         super().enter()
 
     def action(self):
         super().action()
+
+    def energy(self, v):
+        self.energy += v
+        if self.energy < 0:
+            self.energy = 0
+        # カラー
+        if self.energy > 15:
+            color = c.ENERGY_COL_FULL
+        elif self.energy > 5:
+            color = c.ENERGY_COL_MID
+        else:
+            color = c.ENERGY_COL_EMPTY
+        # バーの長さ
+        w = self.energy * c.ENERGY_STEP
+        if w > pl.LCD_W:
+            w = pl.LCD_W
+
+        self.energy_bar.w = w
+        self.energy_bar.color = color
 
     def __fire_panel(self):
         """弾発射"""
@@ -364,6 +387,8 @@ class Ship(gl.Sprite):
             c.SHOT_W,
             c.SHOT_H,
         )
+        # エネルギー
+        self.energy -= 1
 
     # イベントリスナー
     def event_enter_frame(self, type, sender, option):
@@ -387,12 +412,14 @@ class Ship(gl.Sprite):
             self.move_anime.play()
 
         if option.repeat & pl.KEY_LEFT:
-            pass
+            # 強制スクロール
+            self.scene.fieldmap.scroll_wait = 1
+            game_status["score"] += c.FORCE_SCORE 
         if option.repeat & pl.KEY_RIGHT:
             pass
 
         # 弾発射
-        if option.push & pl.KEY_B and not self.move_anime.is_playing:
+        if option.push & pl.KEY_B and not self.move_anime.is_playing and self.energy > 1:
             self.__fire_panel()
 
         # 移動中
@@ -483,7 +510,9 @@ class FieldMap:
         )
 
     def check_hit_panel(self, shot_panel):
-        """弾とパネルの当たり判定"""
+        """弾とパネルの当たり判定
+        フラッシュ中のパネルは通過する.
+        """
         x = shot_panel.x // c.PANEL_W
         y = shot_panel.y // (c.PANEL_H + c.PANEL_BLANK_Y)
         hit = False

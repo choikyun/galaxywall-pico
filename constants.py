@@ -106,6 +106,16 @@ TITLE_H = const(70)
 CREDIT_W = const(168)
 CREDIT_H = const(14)
 
+# エネルギー
+MAX_ENERGY = const(30)
+ENERGY_STEP = const(8)
+ENERGY_COL_FULL = const(0b00000_111111_00000)
+ENERGY_COL_MID = const(0b11111_111111_00000)
+ENERGY_COL_EMPTY = const(0b11111_000000_00000)
+
+# スコア
+FORCE_SCORE = 1
+
 # イベント
 EV_CHECK_HIT = const("event_check_hit_panel")
 """弾とパネルの当たり判定"""

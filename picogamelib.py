@@ -46,6 +46,11 @@ EV_PRIORITY_HI = const(10)
 EV_PRIORITY_MID = const(50)
 EV_PRIORITY_LOW = const(100)
 
+# 図形描画
+SHAPE_LINE = 0
+SHAPE_RECT = 1
+SHAPE_RECTF = 2
+
 DEFAULT_FPS = const(30)
 """デフォルトFPS"""
 
@@ -415,6 +420,39 @@ class BitmapSprite(Sprite):
                     buf[pos_x2 + 2] = c1
                     buf[pos_x2 + 3] = c2
                     idx += 2
+
+class ShapeSprite(SpriteContainer):
+    """図形描画用スプライト
+    子スプライトを持たない（持っても描画しない）
+
+    Params:
+        shape (taple): 図形データ 0:mode(LINE|HLINE|VLINE|RECT|RECTF) 1:x1 2:y1 3:x2 4:y2 5:color
+    """
+
+    def __init__(self, parent, shape, name, z):
+        self.super().__init__()
+        self.init_params(parent, 0, name, shape[1], shape[2], z, 0, 0)
+        self.shape = shape
+        self.w = shape[3] - shape[1]
+        self.h = shape[4] - shape[2]
+        self.mode = shape[0]
+        self.color = shape[5]
+
+    def show(self, frame_buffer, x, y):
+        """フレームバッファに図形を描画"""
+        if self.visible:
+            x += self.x
+            y += self.y
+            if mode == 'LINE':
+                frame_buffer.line(shap[1], shape[2], shape[3], shape[4], self.color)
+            elif mode == 'HLINE':
+                frame_buffer.hline(shap[1], shape[2], self.w, self.color)
+            elif mode == 'VLINE':
+                frame_buffer.vline(shap[1], shape[2], self.h, self.color)
+            elif mode == 'RECT':
+                frame_buffer.rect(shap[1], shape[2], shape[3], shape[4], self.color)
+            elif mode == 'RECTF':
+                frame_buffer.rect(shap[1], shape[2], shape[3], shape[4], self.color, True)
 
 
 class SpritePool:
