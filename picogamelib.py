@@ -370,6 +370,7 @@ class SpriteContainer(Sprite):
 
 class BitmapSprite(Sprite):
     """ビットマップを直接描画するスプライト（低速）
+    大きな画像はメモリ不足になるのでこちらを使用.
 
     Params:
         bitmap (taple): indexed-color, width, height
@@ -379,47 +380,51 @@ class BitmapSprite(Sprite):
         super().__init__()
         self.init_params(parent, 0, name, x, y, z, w, h)
         self.bitmap = bitmap
+        self.bmp = bitmap[0]
+        self.w = bitmap[1]
+        self.h = bitmap[2]
+        self.lcd_w = pl.LCD_W * 2
+        self.chr_w = self.w * 2
+        self.row = self.lcd_w * 2 - self.chr_w
 
     @micropython.native
     def show(self, frame_buffer, x, y):
         """フレームバッファに描画
         自分自身のみ描画.
+        遅いので制約がある.
+          ・親の座標は無効
+          ・クリッピングしていない（表示が崩れる）
 
         Params:
             frame_buffer (FrameBuffer): 描画対象のバッファ(通常BG)
-            x (int): 親のX座標
-            y (int): 親のY座標
+            x (int): 親のX座標（未使用）
+            y (int): 親のY座標（未使用）
         """
         if self.visible:
-            x += self.x
-            y += self.y
+            bmp = self.bmp
+            buf =  frame_buffer.buf
+            lcd_w = self.lcd_w
+            lcd_ww = lcd_w + 2
+            chr_w = self.chr_w
+            pos = self.x * 2 + self.y * lcd_w
+            row = self.row
+            w = self.w
 
-            bmp = memoryview(self.bitmap[0])
-            buf = memoryview(frame_buffer.buf)
-            w = self.bitmap[1]
-            h = self.bitmap[2]
-
-            lcd_w = pl.LCD_W * 2
-            start = x * 2 + y * lcd_w
-
+            count_w = w
             idx = 0
-            for dy in range(0, h, 2):
-                pos1 = dy * lcd_w + start
-                pos2 = pos1 + lcd_w
-                for dx in range(0, w * 2, 4):
-                    pos_x1 = pos1 + dx
-                    pos_x2 = pos2 + dx
-                    c1 = bmp[idx]
-                    c2 = bmp[idx + 1]
-                    buf[pos_x1] = c1
-                    buf[pos_x1 + 1] = c2
-                    buf[pos_x1 + 2] = c1
-                    buf[pos_x1 + 3] = c2
-                    buf[pos_x2] = c1
-                    buf[pos_x2 + 1] = c2
-                    buf[pos_x2 + 2] = c1
-                    buf[pos_x2 + 3] = c2
-                    idx += 2
+            for col in bmp:
+                buf[pos] = col
+                buf[pos + 2] = col
+                buf[pos + lcd_w] = col
+                buf[pos + lcd_ww] = col
+                idx ^= 1
+                pos += idx + (idx ^ 1) * 3 # 次のピクセル
+                
+                count_w -= 1
+                if count_w == 0:
+                    pos += row # 2行先
+                    count_w = w
+
 
 class ShapeSprite(SpriteContainer):
     """図形描画用スプライト
@@ -430,29 +435,33 @@ class ShapeSprite(SpriteContainer):
     """
 
     def __init__(self, parent, shape, name, z):
-        self.super().__init__()
-        self.init_params(parent, 0, name, shape[1], shape[2], z, 0, 0)
+        super().__init__()
+        self.init_params(parent, name, shape[2], shape[3], z)
         self.shape = shape
         self.w = shape[3] - shape[1]
         self.h = shape[4] - shape[2]
         self.mode = shape[0]
         self.color = shape[5]
-
+    
+    @micropython.native
     def show(self, frame_buffer, x, y):
         """フレームバッファに図形を描画"""
         if self.visible:
             x += self.x
             y += self.y
-            if mode == 'LINE':
-                frame_buffer.line(shap[1], shape[2], shape[3], shape[4], self.color)
-            elif mode == 'HLINE':
-                frame_buffer.hline(shap[1], shape[2], self.w, self.color)
-            elif mode == 'VLINE':
-                frame_buffer.vline(shap[1], shape[2], self.h, self.color)
-            elif mode == 'RECT':
-                frame_buffer.rect(shap[1], shape[2], shape[3], shape[4], self.color)
-            elif mode == 'RECTF':
-                frame_buffer.rect(shap[1], shape[2], shape[3], shape[4], self.color, True)
+            m = self.mode
+            shape = self.shape
+
+            if m == 'LINE':
+                frame_buffer.line(shape[1], shape[2], shape[3], shape[4], self.color)
+            elif m == 'HLINE':
+                frame_buffer.hline(shape[1], shape[2], self.w, self.color)
+            elif m == 'VLINE':
+                frame_buffer.vline(shape[1], shape[2], self.h, self.color)
+            elif m == 'RECT':
+                frame_buffer.rect(shape[1], shape[2], shape[3], shape[4], self.color)
+            elif m == 'RECTF':
+                frame_buffer.rect(shape[1], shape[2], shape[3], shape[4], self.color, True)
 
 
 class SpritePool:
@@ -766,7 +775,7 @@ class EventManager:
 
 class Scene:
     """シーン
-    メイン画面, タイトル画面, ポース画面 等
+    メイン画面, タイトル画面, ポース画面 等.
 
     Params:
         name (str): シーン名
@@ -851,7 +860,8 @@ class Scene:
 
 class Director:
     """ディレクター
-    各シーンを管理・実行
+    各シーンを管理・実行.
+    シーンはスタックで管理してる.
 
     Params:
         scene_list (list): 使用するシーンのリスト

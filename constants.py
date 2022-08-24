@@ -1,3 +1,7 @@
+"""GALAXY WALL PICO"""
+__version__ = "1.0.0"
+__author__ = "Choi Gyun 2022"
+
 from micropython import const
 
 # 自機
@@ -6,6 +10,7 @@ SHIP_H = const(20)
 SHIP_MOVE_STEP = const(SHIP_H + 2)
 SHIP_MOVE_LIMIT = const(SHIP_MOVE_STEP * 5)
 SHIP_MOVE_FRAME_MAX = const(8)  # 移動にかかるフレーム数
+SHIP_FLASH_INTERVAL = const(4)
 
 # 弾
 SHOT_W = const(20)
@@ -56,6 +61,9 @@ FLASH_INTERVAL = const(4)
 # メッセージ
 MES_DURATION = const(30 * 2)
 MES_INTERVAL = const(6)
+# combo メッセージ
+COMBO_DURATION = const(30)
+COMBO_INTERVAL = const(4)
 
 # 1列消去の遅延時間
 DELETE_DELAY = const(30)
@@ -69,6 +77,8 @@ CHR_FLASH = const(10)
 CHR_SHOT = const(11)
 CHR_DEADLINE = const(12)
 CHR_NUM = const(13)
+CHR_EPANEL = const(23)
+CHR_METEO = const(25)
 
 BMP_TITLE = const(0)
 BMP_OVER = const(1)
@@ -78,6 +88,7 @@ BMP_LINES = const(4)
 BMP_INFO_BRIGHT = const(5)
 BMP_READY = const(6)
 BMP_CREDIT = const(7)
+BMP_COMBO = const(8)
 
 # ポーズ画面
 SCORE_W = const(84)
@@ -106,15 +117,26 @@ TITLE_H = const(70)
 CREDIT_W = const(168)
 CREDIT_H = const(14)
 
+COMBO_W = (100)
+COMBO_H = (24)
+
 # エネルギー
 MAX_ENERGY = const(30)
 ENERGY_STEP = const(8)
 ENERGY_COL_FULL = const(0b00000_111111_00000)
 ENERGY_COL_MID = const(0b11111_111111_00000)
 ENERGY_COL_EMPTY = const(0b11111_000000_00000)
+ENERGY_RECOVERY = const(30)
+
+EPANEL_SPEED = const(1)
+
+# 停止
+METEO_SPEED = const(1)
+STOP_TIME = const(30 * 5)
+MAX_METEO = (2)
 
 # スコア
-FORCE_SCORE = 1
+FORCE_SCORE = const(1)
 
 # イベント
 EV_CHECK_HIT = const("event_check_hit_panel")

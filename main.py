@@ -44,13 +44,6 @@ class MainScene(gl.Scene):
         self.event.clear_queue()
         # 全てのリスナーを有効
         self.event.enable_listners()
-
-        # メッセージ表示
-        mes = BlinkMessage(
-            self.stage, bmp_data[c.BMP_READY], "ready", 70, 50, 10000, 0, 0
-        )
-        mes.enter()
-
         # ステータス初期化
         game_status["lines"] = 0
         game_status["score"] = 0
@@ -61,14 +54,54 @@ class MainScene(gl.Scene):
         # 自機
         self.ship.x = 0
         self.ship.y = c.SHIP_MOVE_STEP * 2
+        # エネルギーパネル
+        self.epanel_num = 0
+        # メテオ
+        self.meteo_num = 0
+
+        # メッセージ表示
+        BlinkMessage(self.stage, bmp_data[c.BMP_READY], "ready", 70, 50, 10000, 0, 0)
+
         super().enter()
 
     def action(self):
         """フレーム毎のアクション 30FPS"""
         super().action()
-        # ポーズ
-        if self.active and self.key.push & pl.KEY_A:
-            self.director.push("pause")
+
+        if self.active:
+            # ポーズ
+            if self.key.push & pl.KEY_A:
+                self.director.push("pause")
+            # エネルギーパネル
+            if (
+                self.ship.energy < 15
+                and self.epanel_num == 0
+                and random.randint(0, 50) == 0
+            ):
+                self.stage.epanel_pool.get_instance().init_params(
+                    self.stage,
+                    c.CHR_EPANEL,
+                    "epanel",
+                    pl.LCD_W,
+                    random.randint(0, 5) * (c.PANEL_H + c.PANEL_BLANK_Y),
+                    1000,
+                    c.PANEL_W,
+                    c.PANEL_H,
+                )
+                self.epanel_num += 1
+            # メテオ
+            if self.meteo_num < c.MAX_METEO and random.randint(0, 150) == 0:
+                self.stage.meteo_pool.get_instance().init_params(
+                    self.stage,
+                    c.CHR_METEO,
+                    "meteo",
+                    pl.LCD_W,
+                    random.randint(0, 5) * (c.PANEL_H + c.PANEL_BLANK_Y),
+                    1000,
+                    c.PANEL_W,
+                    c.PANEL_H,
+                )
+                self.meteo_num += 1
 
     def leave(self):
         """終了処理"""
@@ -235,7 +268,7 @@ class OverScene(gl.Scene):
 
         if self.active:
             # リプレイ
-            if self.key.push & pl.KEY_A:
+            if self.key.push & pl.KEY_B:
                 self.director.pop()
                 self.director.pop()  # メイン画面もpop
                 self.director.push("main")
@@ -264,7 +297,7 @@ class TitleScene(gl.Scene):
             bmp_data[c.BMP_TITLE],
             "title",
             0,
-            30,
+            20,
             1,
             c.TITLE_W,
             c.TITLE_H,
@@ -285,8 +318,8 @@ class TitleScene(gl.Scene):
     def enter(self):
         self.hi_num.set_value(game_status["hi"])
         self.anime.start = self.title.y
-        self.anime.delta = -30
-        self.anime.total_frame = 20
+        self.anime.delta = -20
+        self.anime.total_frame = 10
         self.anime.play()
         super().enter()
 
@@ -306,7 +339,7 @@ class TitleScene(gl.Scene):
 
         if self.active:
             # ゲーム開始
-            if self.key.push & pl.KEY_A:
+            if self.key.push & pl.KEY_B:
                 self.anime.stop()
                 self.director.pop()
                 self.director.push("main")
@@ -327,6 +360,10 @@ class MainStage(gl.Stage):
         self.panel_pool = gl.SpritePool(self, globals()["Panel"])
         # ショットのプール
         self.shot_pool = gl.SpritePool(self, globals()["ShotPanel"], 1)
+        # エネルギーパネル
+        self.epanel_pool = gl.SpritePool(self, globals()["EnergyPanel"], 1)
+        # メテオ
+        self.meteo_pool = gl.SpritePool(self, globals()["Meteo"], 2)
 
 
 class Ship(gl.Sprite):
@@ -342,17 +379,43 @@ class Ship(gl.Sprite):
         self.scene.event.add_listner([gl.EV_ENTER_FRAME, self, True])
 
         # エネルギー表示スプライト
-        self.enelgy_bar = gl.ShapeSprite(parent, ('HLINE', 0, 159, c.MAX_ENERGY * c.ENERGY_STEP, c.ENERGY_COLOE_FULL), 1000)
+        self.energy_bar = gl.ShapeSprite(
+            parent,
+            (
+                "HLINE",
+                0,
+                134,
+                240,
+                134,
+                c.ENERGY_COL_FULL,
+            ),
+            "energy",
+            1000,
+        )
 
     def enter(self):
         self.fire_panel_num = 0  # 現在の発射数
-        self.energy = c.MAX_ENERGY # エネルギー
+
+        self.energy = c.MAX_ENERGY + 10  # エネルギー
+        self.energy_bar.w = c.MAX_ENERGY * c.ENERGY_STEP
+        self.energy_bar.color = c.ENERGY_COL_FULL
+
+        self.stop_time = 0  # 停止時間
+        self.flash_time = 0  # 点滅
+        self.flash = False
+
         super().enter()
 
     def action(self):
         super().action()
+        # 点滅
+        if self.flash:
+            self.flash_time += 1
+            if self.flash_time % c.SHIP_FLASH_INTERVAL == 0:
+                self.visible = not self.visible
 
-    def energy(self, v):
+    def update_energy(self, v):
+        """エネルギー更新"""
         self.energy += v
         if self.energy < 0:
             self.energy = 0
@@ -388,13 +451,18 @@ class Ship(gl.Sprite):
             c.SHOT_H,
         )
         # エネルギー
-        self.energy -= 1
+        self.update_energy(-1)
 
     # イベントリスナー
     def event_enter_frame(self, type, sender, option):
         """フレーム毎"""
         # 上下移動
-        if option.repeat & pl.KEY_UP and self.y > 0 and not self.move_anime.is_playing:
+        if (
+            option.repeat & pl.KEY_UP
+            and self.y > 0
+            and not self.move_anime.is_playing
+            and self.stop_time == 0
+        ):
             # アニメセット
             self.move_anime.start = self.y
             self.move_anime.delta = -c.SHIP_MOVE_STEP
@@ -404,6 +472,7 @@ class Ship(gl.Sprite):
             option.repeat & pl.KEY_DOWN
             and self.y < c.SHIP_MOVE_LIMIT
             and not self.move_anime.is_playing
+            and self.stop_time == 0
         ):
             # アニメセット
             self.move_anime.start = self.y
@@ -414,12 +483,29 @@ class Ship(gl.Sprite):
         if option.repeat & pl.KEY_LEFT:
             # 強制スクロール
             self.scene.fieldmap.scroll_wait = 1
-            game_status["score"] += c.FORCE_SCORE 
+            game_status["score"] += c.FORCE_SCORE
         if option.repeat & pl.KEY_RIGHT:
             pass
 
+        # 強制停止
+        if self.stop_time > 0:
+            self.stop_time -= 1
+            self.chr_no = c.CHR_SHIP + 1
+            # 解除間際で点滅
+            if self.stop_time == 30:
+                self.flash = True
+        else:
+            self.chr_no = c.CHR_SHIP
+            self.visible = True
+            self.flash = False
+            self.flash_time = 0
+
         # 弾発射
-        if option.push & pl.KEY_B and not self.move_anime.is_playing and self.energy > 1:
+        if (
+            option.push & pl.KEY_B
+            and not self.move_anime.is_playing
+            and self.energy > 0
+        ):
             self.__fire_panel()
 
         # 移動中
@@ -534,7 +620,7 @@ class FieldMap:
             self.stage.shot_pool.return_instance(shot_panel)  # プールに返却
 
             self.scene.ship.fire_panel_num -= 1
-            self.__check_line(new_panel_x)  # ライン消去判定
+            self.__check_line(new_panel_x, shot_panel.y)  # ライン消去判定
 
     def __shuffle(self, x):
         """1列まぜる"""
@@ -563,7 +649,7 @@ class FieldMap:
         for i in range(c.FIELD_H):
             self.fieldmap[i][pos_x] = None
 
-    def __check_line(self, x):
+    def __check_line(self, x, shot_y):
         """1列そろったか"""
         for y in range(c.FIELD_H):
             if self.fieldmap[y][x] is None:
@@ -590,6 +676,25 @@ class FieldMap:
         # スコア可算 グレーパネルは無効
         if self.fieldmap[0][x].chr_no == c.CHR_FLASH:
             self.combo += 1
+            if self.combo > 1:
+                combo_x = x * c.PANEL_W + 22
+                if combo_x > pl.LCD_W - c.COMBO_W:
+                    compo_x = pl.LCD_W - c.COMBO_W
+                # メッセージ表示
+                b = BlinkMessage(
+                    self.stage,
+                    bmp_data[c.BMP_COMBO],
+                    "combo",
+                    combo_x,
+                    shot_y,
+                    10000,
+                    0,
+                    0,
+                )
+                b.enter()
+                b.duration = c.COMBO_DURATION
+                b.interval = c.COMBO_INTERVAL
+
             game_status["score"] += (c.FIELD_W - x) * self.combo
             # ライン可算
             game_status["lines"] += 1
@@ -685,7 +790,7 @@ class FieldMap:
                 self.fieldmap[y][0] = None
 
         # コンボひとつ終了
-        if chr_no != c.CHR_FLASH:
+        if chr_no == c.CHR_FLASH:
             self.combo -= 1
 
 
@@ -748,6 +853,94 @@ class ShotPanel(gl.Sprite):
         self.x += c.SHOT_SPEED
 
 
+class EnergyPanel(gl.Sprite):
+    """エネルギー回復"""
+
+    def __init__(self):
+        super().__init__()
+        self.chr_flg = 0
+        self.flash_time = 0
+
+    def init_params(self, parent, chr_no, name, x, y, z, w, h):
+        super().init_params(parent, chr_no, name, x, y, z, w, h)
+        self.def_chr = chr_no
+
+    def enter(self):
+        self.scene.event.add_listner([gl.EV_ENTER_FRAME, self, True])
+        super().enter()
+
+    def leave(self):
+        self.scene.event.remove_all_listner(self)
+        super().leave()
+
+    def action(self):
+        super().action()
+
+    # イベントリスナー
+    def event_enter_frame(self, type, sender, option):
+        self.x -= c.EPANEL_SPEED
+
+        # 点滅
+        self.flash_time += 1
+        if self.flash_time % c.FLASH_INTERVAL == 0:
+            self.chr_flg ^= 1
+            self.chr_no = self.def_chr + self.chr_flg
+
+        # 当たり判定
+        if self.x < 0 and self.scene.ship.y == self.y:
+            self.scene.ship.update_energy(c.ENERGY_RECOVERY)  # 回復
+            self.scene.epanel_num -= 1
+            self.stage.epanel_pool.return_instance(self)
+        elif self.x < 0:
+            self.scene.epanel_num -= 1
+            self.stage.epanel_pool.return_instance(self)
+
+
+class Meteo(gl.Sprite):
+    """メテオ
+    ぶつかると一定時間停止
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.chr_flg = 0
+        self.flash_time = 0
+
+    def init_params(self, parent, chr_no, name, x, y, z, w, h):
+        super().init_params(parent, chr_no, name, x, y, z, w, h)
+        self.def_chr = chr_no
+
+    def enter(self):
+        self.scene.event.add_listner([gl.EV_ENTER_FRAME, self, True])
+        super().enter()
+
+    def leave(self):
+        self.scene.event.remove_all_listner(self)
+        super().leave()
+
+    def action(self):
+        super().action()
+
+    # イベントリスナー
+    def event_enter_frame(self, type, sender, option):
+        self.x -= c.METEO_SPEED
+
+        # 点滅
+        self.flash_time += 1
+        if self.flash_time % c.FLASH_INTERVAL == 0:
+            self.chr_flg ^= 1
+            self.chr_no = self.def_chr + self.chr_flg
+
+        # 当たり判定
+        if self.x < 0 and self.scene.ship.y == self.y:
+            self.scene.ship.stop_time = c.STOP_TIME
+            self.scene.meteo_num -= 1
+            self.stage.meteo_pool.return_instance(self)
+        elif self.x < 0:
+            self.scene.meteo_num -= 1
+            self.stage.meteo_pool.return_instance(self)
+
+
 class DeadLine(gl.Sprite):
     """デッドライン
     一定間隔でせり上がる
@@ -785,6 +978,7 @@ class BlinkMessage(gl.BitmapSprite):
 
     def enter(self):
         self.duration = c.MES_DURATION
+        self.interval = c.MES_INTERVAL
         super().enter()
 
     def leave(self):
@@ -794,13 +988,12 @@ class BlinkMessage(gl.BitmapSprite):
     def action(self):
         super().action()
 
-        if self.duration % c.MES_INTERVAL == 0:
+        if self.duration % self.interval == 0:
             self.visible = not self.visible
 
         # 一定時間で消える
         self.duration -= 1
         if self.duration == 0:
-            # 削除
             self.leave()
 
 
@@ -868,6 +1061,12 @@ chr_data = [
     (data.num_7, 20, 20),
     (data.num_8, 20, 20),
     (data.num_9, 20, 20),
+    (data.e_0, 20, 20),  # バッテリー（エネルギー）
+    (data.e_1, 20, 20),
+    (data.meteo_0, 20, 20),  # メテオ
+    (data.meteo_1, 20, 20),
+    (data.w_0, 20, 20),  # 連射
+    (data.w_1, 20, 20),
 ]
 # イメージバッファ生成
 gl.create_image_buffers(data.palette565, chr_data)
@@ -882,6 +1081,7 @@ bmp_data = [
     (data.info_bright, 44, 24),
     (data.ready, 100, 24),
     (data.credit, 168, 14),
+    (data.combo, 100, 24),
 ]
 
 # ステータスをロード
