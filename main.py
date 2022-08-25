@@ -4,9 +4,6 @@ __author__ = "Choi Gyun 2022"
 
 import machine
 import random
-import gc
-import micropython
-
 import utime
 
 import ease
@@ -54,13 +51,15 @@ class MainScene(gl.Scene):
         # 自機
         self.ship.x = 0
         self.ship.y = c.SHIP_MOVE_STEP * 2
+
         # エネルギーパネル
         self.epanel_num = 0
-        # メテオ
-        self.meteo_num = 0
+        # メテオ・バーストパネル
+        self.item_num = 0
+        # アイテムをプールに返却
 
         # メッセージ表示
-        BlinkMessage(self.stage, bmp_data[c.BMP_READY], "ready", 70, 50, 10000, 0, 0)
+        BlinkMessage(self.stage, bmp_data[c.BMP_READY], c.READY_DURATION, c.READY_INTERVAL, "ready", 70, 50, 10000, 0, 0)
 
         super().enter()
 
@@ -89,19 +88,24 @@ class MainScene(gl.Scene):
                     c.PANEL_H,
                 )
                 self.epanel_num += 1
-            # メテオ
-            if self.meteo_num < c.MAX_METEO and random.randint(0, 150) == 0:
-                self.stage.meteo_pool.get_instance().init_params(
+            # メテオ・バーストパネル
+            elif self.item_num < c.MAX_ITEM and random.randint(0, 100) == 0:
+                if random.randint(0, 3) == 0:
+                    chr_no = c.CHR_BURST
+                else:
+                    chr_no = c.CHR_METEO
+
+                self.stage.item_pool.get_instance().init_params(
                     self.stage,
-                    c.CHR_METEO,
-                    "meteo",
+                    chr_no,
+                    "item",
                     pl.LCD_W,
                     random.randint(0, 5) * (c.PANEL_H + c.PANEL_BLANK_Y),
                     1000,
                     c.PANEL_W,
                     c.PANEL_H,
                 )
-                self.meteo_num += 1
+                self.item_num += 1
 
     def leave(self):
         """終了処理"""
@@ -359,11 +363,18 @@ class MainStage(gl.Stage):
         # パネルのプール
         self.panel_pool = gl.SpritePool(self, globals()["Panel"])
         # ショットのプール
-        self.shot_pool = gl.SpritePool(self, globals()["ShotPanel"], 1)
+        self.shot_pool = gl.SpritePool(self, globals()["ShotPanel"], 2)
         # エネルギーパネル
         self.epanel_pool = gl.SpritePool(self, globals()["EnergyPanel"], 1)
-        # メテオ
-        self.meteo_pool = gl.SpritePool(self, globals()["Meteo"], 2)
+        # メテオ・バースト
+        self.item_pool = gl.SpritePool(self, globals()["Item"], MAX_ItEM)
+
+    def enter(self)
+        """初期化"""
+        # アイテムスプライトをプールに返却
+        self.return_sprites(self.item_pool, 'item')
+
+        super().enter()
 
 
 class Ship(gl.Sprite):
@@ -396,11 +407,12 @@ class Ship(gl.Sprite):
     def enter(self):
         self.fire_panel_num = 0  # 現在の発射数
 
-        self.energy = c.MAX_ENERGY + 10  # エネルギー
+        self.energy = c.MAX_ENERGY  # エネルギー
         self.energy_bar.w = c.MAX_ENERGY * c.ENERGY_STEP
         self.energy_bar.color = c.ENERGY_COL_FULL
 
         self.stop_time = 0  # 停止時間
+        self.burst_time = 0 # 連射時間
         self.flash_time = 0  # 点滅
         self.flash = False
 
@@ -420,9 +432,9 @@ class Ship(gl.Sprite):
         if self.energy < 0:
             self.energy = 0
         # カラー
-        if self.energy > 15:
+        if self.energy > 30:
             color = c.ENERGY_COL_FULL
-        elif self.energy > 5:
+        elif self.energy > 15:
             color = c.ENERGY_COL_MID
         else:
             color = c.ENERGY_COL_EMPTY
@@ -451,7 +463,7 @@ class Ship(gl.Sprite):
             c.SHOT_H,
         )
         # エネルギー
-        self.update_energy(-1)
+        self.update_energy(-4)
 
     # イベントリスナー
     def event_enter_frame(self, type, sender, option):
@@ -468,6 +480,8 @@ class Ship(gl.Sprite):
             self.move_anime.delta = -c.SHIP_MOVE_STEP
             self.move_anime.total_frame = c.SHIP_MOVE_FRAME_MAX
             self.move_anime.play()
+            self.update_energy(-1)
+
         if (
             option.repeat & pl.KEY_DOWN
             and self.y < c.SHIP_MOVE_LIMIT
@@ -479,20 +493,29 @@ class Ship(gl.Sprite):
             self.move_anime.delta = c.SHIP_MOVE_STEP
             self.move_anime.total_frame = c.SHIP_MOVE_FRAME_MAX
             self.move_anime.play()
+            self.update_energy(-1)
 
         if option.repeat & pl.KEY_LEFT:
             # 強制スクロール
             self.scene.fieldmap.scroll_wait = 1
             game_status["score"] += c.FORCE_SCORE
+            self.update_energy(-4)
+
         if option.repeat & pl.KEY_RIGHT:
             pass
 
-        # 強制停止
+        # 強制停止・連射
         if self.stop_time > 0:
             self.stop_time -= 1
             self.chr_no = c.CHR_SHIP + 1
             # 解除間際で点滅
             if self.stop_time == 30:
+                self.flash = True
+        elif self.burst_time > 0:
+            self.burst_time -= 1
+            self.chr_no = c.CHR_SHIP + 2
+            # 解除間際で点滅
+            if self.burst_time == 30:
                 self.flash = True
         else:
             self.chr_no = c.CHR_SHIP
@@ -555,7 +578,7 @@ class FieldMap:
 
     def clear(self):
         """マップをクリア
-        スプライトも破棄
+        スプライトは回収
         """
         for y in range(c.FIELD_H):
             for x in range(c.FIELD_W):
@@ -580,7 +603,7 @@ class FieldMap:
         if self.line_count % c.COLOR_STEP == 0:
             self.current_color = (self.current_color + 1) % c.COLOR_MAX
 
-    def set_new_panel(self, x, y, color):
+    def set_new_panel(self, x, y, color, burst):
         """新しいパネルをセット"""
         sp_x = x * c.PANEL_W
         sp_y = y * (c.PANEL_H + c.PANEL_BLANK_Y)
@@ -594,6 +617,19 @@ class FieldMap:
             c.PANEL_W,
             c.PANEL_H,
         )
+        if burst > 0 and x > 0:
+            # カラー取得
+            color = self.__get_panel_color(x)
+            self.fieldmap[y][x-1] = self.stage.panel_pool.get_instance().init_params(
+                self.stage,
+                color + c.CHR_PANEL,
+                "panel",
+                sp_x,
+                sp_y,
+                50,
+                c.PANEL_W,
+                c.PANEL_H,
+            )
 
     def check_hit_panel(self, shot_panel):
         """弾とパネルの当たり判定
@@ -605,17 +641,20 @@ class FieldMap:
         new_panel_x = x
 
         # フィールドがスクロールしなかった場合
-        if x == (c.FIELD_W - 1) or self.fieldmap[y][x + 1] is not None:
+        pane = self.fieldmap[y][x + 1]
+        if x == (c.FIELD_W - 1) or pane is not None and pane.chr_no < c.CHR_PANELX:
             hit = True
 
-        # スクロールしている場合もある
-        if self.fieldmap[y][x] is not None:
-            hit = True
-            new_panel_x -= 1
+        # スクロールした場合, フラッシュしている場合
+        # 現在位置から巻き戻して置ける場所を探す
+        for i in range(0, x, -1)
+            if self.fieldmap[y][i] is not None:
+                hit = True
+                new_panel_x -= 1
 
         if hit:
             self.set_new_panel(
-                new_panel_x, y, self.__get_panel_color(new_panel_x)
+                new_panel_x, y, self.__get_panel_color(new_panel_x), self.scene.ship.burst
             )  # パネル生成
             self.stage.shot_pool.return_instance(shot_panel)  # プールに返却
 
@@ -684,6 +723,8 @@ class FieldMap:
                 b = BlinkMessage(
                     self.stage,
                     bmp_data[c.BMP_COMBO],
+                    c.COMBO_DURATION,
+                    c.COMBO_INTERVAL,
                     "combo",
                     combo_x,
                     shot_y,
@@ -692,8 +733,6 @@ class FieldMap:
                     0,
                 )
                 b.enter()
-                b.duration = c.COMBO_DURATION
-                b.interval = c.COMBO_INTERVAL
 
             game_status["score"] += (c.FIELD_W - x) * self.combo
             # ライン可算
@@ -725,7 +764,7 @@ class FieldMap:
                     [
                         c.EV_GAMEOVER,
                         gl.EV_PRIORITY_HI,
-                        60,  # タイムラグ
+                        30,  # タイムラグ
                         self,
                         None,
                     ]
@@ -896,9 +935,12 @@ class EnergyPanel(gl.Sprite):
             self.stage.epanel_pool.return_instance(self)
 
 
-class Meteo(gl.Sprite):
-    """メテオ
-    ぶつかると一定時間停止
+class Item(gl.Sprite):
+    """メテオ・バースト
+    メテオ：
+        一定時間停止
+    バースト；
+        一定時間連射
     """
 
     def __init__(self):
@@ -923,7 +965,7 @@ class Meteo(gl.Sprite):
 
     # イベントリスナー
     def event_enter_frame(self, type, sender, option):
-        self.x -= c.METEO_SPEED
+        self.x -= c.ITEM_SPEED
 
         # 点滅
         self.flash_time += 1
@@ -933,11 +975,16 @@ class Meteo(gl.Sprite):
 
         # 当たり判定
         if self.x < 0 and self.scene.ship.y == self.y:
-            self.scene.ship.stop_time = c.STOP_TIME
-            self.scene.meteo_num -= 1
+            if self.chr_no == c.CHR_METEO: # メテオ
+                self.scene.ship.stop_time = c.STOP_TIME
+            else: # バースト
+                self.scene.ship.burst_time = c.STOP_TIME
+
+            self.scene.item_num -= 1
             self.stage.meteo_pool.return_instance(self)
+
         elif self.x < 0:
-            self.scene.meteo_num -= 1
+            self.scene.item_num -= 1
             self.stage.meteo_pool.return_instance(self)
 
 
@@ -971,14 +1018,18 @@ class DeadLine(gl.Sprite):
 class BlinkMessage(gl.BitmapSprite):
     """点滅メッセージ表示
     一定期間で消える
+
+    Attributes:
+        duration (int): 表示時間
+        interval (int): 点滅間隔
     """
 
-    def __init__(self, parent, bitmap, name, x, y, z, w, h):
+    def __init__(self, parent, bitmap, duration, interval, name, x, y, z, w, h):
         super().__init__(parent, bitmap, name, x, y, z, w, h)
+        self.duration = duration
+        self.interval = interval
 
     def enter(self):
-        self.duration = c.MES_DURATION
-        self.interval = c.MES_INTERVAL
         super().enter()
 
     def leave(self):

@@ -297,6 +297,22 @@ class Sprite:
             sp.visible = False
 
         self.sprite_list.clear()
+    
+    def return_sprites(self, name):
+        """特定のスプライトをプールに返却
+        
+        Param:
+            name (str): 名前
+        """
+        for i in range(len(self.sprite_list) - 1, -1, -1):
+            if self.sprite_list[i].name == name:
+                sp = self.sprite_list[i]
+                sp.parent = None
+                sp.stage = None
+                sp.scene = None
+                sp.visible = False
+                sp.pool.append(sp)
+                del self.sprite_list[i]
 
     def enter(self):
         """入場
@@ -500,6 +516,7 @@ class SpritePool:
             o.parent = None
             o.stage = self.stage
             o.scene = self.stage.scene
+            o.pool = self
             o.enter()
             return o
         else:
@@ -507,6 +524,7 @@ class SpritePool:
             o.parent = None
             o.stage = self.stage
             o.scene = self.stage.scene
+            o.pool = self
             o.enter()
             return o
 

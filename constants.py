@@ -10,12 +10,12 @@ SHIP_H = const(20)
 SHIP_MOVE_STEP = const(SHIP_H + 2)
 SHIP_MOVE_LIMIT = const(SHIP_MOVE_STEP * 5)
 SHIP_MOVE_FRAME_MAX = const(8)  # 移動にかかるフレーム数
-SHIP_FLASH_INTERVAL = const(4)
+SHIP_FLASH_INTERVAL = const(2)
 
 # 弾
 SHOT_W = const(20)
 SHOT_H = const(20)
-SHOT_PANEL_MAX = const(1)
+SHOT_PANEL_MAX = const(2)
 SHOT_SPEED = const(10)
 
 # フィールド
@@ -59,8 +59,8 @@ SCROLL_STOP_TIME = const(30)  # 一定時間停止
 FLASH_INTERVAL = const(4)
 
 # メッセージ
-MES_DURATION = const(30 * 2)
-MES_INTERVAL = const(6)
+READY_DURATION = const(30 * 2)
+READY_INTERVAL = const(8)
 # combo メッセージ
 COMBO_DURATION = const(30)
 COMBO_INTERVAL = const(4)
@@ -76,7 +76,7 @@ CHR_PANELX = const(9)
 CHR_FLASH = const(10)
 CHR_SHOT = const(11)
 CHR_DEADLINE = const(12)
-CHR_NUM = const(13)
+CHR_NUM = c.const(13)
 CHR_EPANEL = const(23)
 CHR_METEO = const(25)
 
@@ -121,8 +121,8 @@ COMBO_W = (100)
 COMBO_H = (24)
 
 # エネルギー
-MAX_ENERGY = const(30)
-ENERGY_STEP = const(8)
+MAX_ENERGY = const(60)
+ENERGY_STEP = const(4)
 ENERGY_COL_FULL = const(0b00000_111111_00000)
 ENERGY_COL_MID = const(0b11111_111111_00000)
 ENERGY_COL_EMPTY = const(0b11111_000000_00000)
@@ -131,12 +131,12 @@ ENERGY_RECOVERY = const(30)
 EPANEL_SPEED = const(1)
 
 # 停止
-METEO_SPEED = const(1)
+ITEM_SPEED = const(1)
 STOP_TIME = const(30 * 5)
-MAX_METEO = (2)
+MAX_ITEM = (4)
 
-# スコア
-FORCE_SCORE = const(1)
+# 強制スクロールスコア
+FORCE_SCORE = const(10)
 
 # イベント
 EV_CHECK_HIT = const("event_check_hit_panel")
