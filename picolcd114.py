@@ -3,7 +3,6 @@
 https://www.waveshare.com/pico-lcd-1.14.htm
 """
 from machine import Pin, SPI, PWM
-import micropython
 import framebuf
 import time
 
@@ -132,7 +131,6 @@ class LCD(framebuf.FrameBuffer):
         self.write_cmd(0x11)  # Sleep out
         self.write_cmd(0x29)  # Display On
 
-    @micropython.native
     def show(self):
         """バッファ転送"""
         self.write_cmd(0x2A)

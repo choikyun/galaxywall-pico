@@ -34,8 +34,8 @@ COLOR_STEP = const(3)
 
 # スコア
 SCORE_DIGIT = const(6)
-
 LINE_DIGIT = const(4)
+
 DEF_LINES = const(6)
 
 # パネル
@@ -49,7 +49,8 @@ COLOR_MAX = const(6)
 
 DEF_DEAD_X = const(24)
 DEAD_W = const(4)
-DEAD_H = const(132)
+DEAD_H = const(20)
+DEAD_BLANK = const(2)
 
 # スクロール
 SCROLL_WAIT = const(6)  # ウェイト
@@ -60,7 +61,7 @@ FLASH_INTERVAL = const(4)
 
 # メッセージ
 READY_DURATION = const(30 * 2)
-READY_INTERVAL = const(8)
+READY_INTERVAL = const(6)
 # combo メッセージ
 COMBO_DURATION = const(30)
 COMBO_INTERVAL = const(4)
@@ -76,9 +77,9 @@ CHR_PANELX = const(9)
 CHR_FLASH = const(10)
 CHR_SHOT = const(11)
 CHR_DEADLINE = const(12)
-CHR_NUM = c.const(13)
-CHR_EPANEL = const(23)
-CHR_METEO = const(25)
+CHR_EPANEL = const(13)
+CHR_METEO = const(15)
+CHR_BURST = const(17)
 
 BMP_TITLE = const(0)
 BMP_OVER = const(1)
@@ -89,6 +90,7 @@ BMP_INFO_BRIGHT = const(5)
 BMP_READY = const(6)
 BMP_CREDIT = const(7)
 BMP_COMBO = const(8)
+BMP_NUM = const(9)
 
 # ポーズ画面
 SCORE_W = const(84)
@@ -101,7 +103,7 @@ INFO_BRIGHT_W = const(44)
 INFO_BRIGHT_H = const(24)
 
 NUM_W = const(16)
-NUM_H = const(20)
+NUM_H = const(16)
 
 # ゲームオーバー
 OVER_W = const(152)
@@ -117,8 +119,8 @@ TITLE_H = const(70)
 CREDIT_W = const(168)
 CREDIT_H = const(14)
 
-COMBO_W = (100)
-COMBO_H = (24)
+COMBO_W = (88)
+COMBO_H = (20)
 
 # エネルギー
 MAX_ENERGY = const(60)
@@ -126,13 +128,19 @@ ENERGY_STEP = const(4)
 ENERGY_COL_FULL = const(0b00000_111111_00000)
 ENERGY_COL_MID = const(0b11111_111111_00000)
 ENERGY_COL_EMPTY = const(0b11111_000000_00000)
-ENERGY_RECOVERY = const(30)
+ENERGY_RECOVERY = const(60)
 
 EPANEL_SPEED = const(1)
+
+# エネルギー消費
+LOST_FIRE = const(-1)
+LOST_MOVE = const(-1)
+LOST_SCROLL = const(-2)
 
 # 停止
 ITEM_SPEED = const(1)
 STOP_TIME = const(30 * 5)
+# アイテム最大数
 MAX_ITEM = (4)
 
 # 強制スクロールスコア

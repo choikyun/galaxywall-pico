@@ -46,11 +46,6 @@ EV_PRIORITY_HI = const(10)
 EV_PRIORITY_MID = const(50)
 EV_PRIORITY_LOW = const(100)
 
-# 図形描画
-SHAPE_LINE = 0
-SHAPE_RECT = 1
-SHAPE_RECTF = 2
-
 DEFAULT_FPS = const(30)
 """デフォルトFPS"""
 
@@ -133,11 +128,13 @@ class Sprite:
         frame_max (int): アニメ用フレーム数
         frame_index (int): アニメ用フレームのインデックス
         frame_wait (int): アニメ用フレーム切り替えウェイト
+        owner (obj): スプライトの所有者
     """
 
     def __init__(self):
         self.sprite_list = []  # 子スプライトのリスト
         self.visible = False
+        self.owner = None
 
     def init_params(self, parent, chr_no, name, x, y, z, w, h):
         """パラメータを初期化
@@ -286,43 +283,15 @@ class Sprite:
                 sp.visible = False
                 return
 
-    def remove_all_sprites(self):
-        """全てのスプライト削除"""
-
-        for sp in self.sprite_list:
-            sp.remove_all_sprites()
-            sp.parent = None
-            sp.stage = None
-            sp.scene = None
-            sp.visible = False
-
-        self.sprite_list.clear()
-    
-    def return_sprites(self, name):
-        """特定のスプライトをプールに返却
-        
-        Param:
-            name (str): 名前
-        """
-        for i in range(len(self.sprite_list) - 1, -1, -1):
-            if self.sprite_list[i].name == name:
-                sp = self.sprite_list[i]
-                sp.parent = None
-                sp.stage = None
-                sp.scene = None
-                sp.visible = False
-                sp.pool.append(sp)
-                del self.sprite_list[i]
-
     def enter(self):
         """入場
         イベントリスナーの登録, その他初期化処理.
-        enter 時は parent は None なので注意.
         """
         for sp in self.sprite_list:
             sp.enter()
 
         self.visible = True
+        return self # チェーンできるように
 
     def leave(self):
         """退場
@@ -334,6 +303,10 @@ class Sprite:
         # 親から削除
         if self.parent is not None:
             self.parent.remove_sprite(self)
+        
+        # プールに返却
+        if self.owner is SpritePool:
+            self.owner.pool.return_instance(self)
 
     def abs_x(self):
         """絶対座標 X"""
@@ -386,60 +359,77 @@ class SpriteContainer(Sprite):
 
 class BitmapSprite(Sprite):
     """ビットマップを直接描画するスプライト（低速）
+    インデックスと同じく２倍にして表示.
     大きな画像はメモリ不足になるのでこちらを使用.
+    width は 4 で割り切れること.
 
     Params:
-        bitmap (taple): indexed-color, width, height
+        bitmap (taple): bitmap, width, height
     """
 
     def __init__(self, parent, bitmap, name, x, y, z, w, h):
         super().__init__()
         self.init_params(parent, 0, name, x, y, z, w, h)
-        self.bitmap = bitmap
+        self.set_bitmap(bitmap)
+        self.lcd_w = pl.LCD_W * 2
+
+    def set_bitmap(self, bitmap):
+        """ビットマップ画像をセット"""
         self.bmp = bitmap[0]
         self.w = bitmap[1]
         self.h = bitmap[2]
-        self.lcd_w = pl.LCD_W * 2
-        self.chr_w = self.w * 2
-        self.row = self.lcd_w * 2 - self.chr_w
 
     @micropython.native
     def show(self, frame_buffer, x, y):
         """フレームバッファに描画
         自分自身のみ描画.
-        遅いので制約がある.
-          ・親の座標は無効
-          ・クリッピングしていない（表示が崩れる）
-
         Params:
             frame_buffer (FrameBuffer): 描画対象のバッファ(通常BG)
-            x (int): 親のX座標（未使用）
-            y (int): 親のY座標（未使用）
+            x (int): 親のX座標
+            y (int): 親のY座標
         """
         if self.visible:
-            bmp = self.bmp
-            buf =  frame_buffer.buf
-            lcd_w = self.lcd_w
-            lcd_ww = lcd_w + 2
-            chr_w = self.chr_w
-            pos = self.x * 2 + self.y * lcd_w
-            row = self.row
-            w = self.w
+            x += self.x
+            y += self.y
 
-            count_w = w
+            buf = frame_buffer.buf
+            bmp = self.bmp
+            w = self.w
+            w2 = w * 2
+            h = self.h
+            lcd_w = self.lcd_w
+            start = x * 2 + y * lcd_w
+
             idx = 0
-            for col in bmp:
-                buf[pos] = col
-                buf[pos + 2] = col
-                buf[pos + lcd_w] = col
-                buf[pos + lcd_ww] = col
-                idx ^= 1
-                pos += idx + (idx ^ 1) * 3 # 次のピクセル
-                
-                count_w -= 1
-                if count_w == 0:
-                    pos += row # 2行先
-                    count_w = w
+            for dy in range(0, h, 2):
+                pos1 = dy * lcd_w + start
+                pos2 = pos1 + lcd_w
+                for dx in range(0, w2, 8):
+                    pos_x1 = pos1 + dx
+                    pos_x2 = pos2 + dx
+
+                    c1 = bmp[idx]
+                    c2 = bmp[idx + 1]
+                    buf[pos_x1] = c1
+                    buf[pos_x1 + 1] = c2
+                    buf[pos_x1 + 2] = c1
+                    buf[pos_x1 + 3] = c2
+                    buf[pos_x2] = c1
+                    buf[pos_x2 + 1] = c2
+                    buf[pos_x2 + 2] = c1
+                    buf[pos_x2 + 3] = c2
+
+                    c1 = bmp[idx + 2]
+                    c2 = bmp[idx + 3]
+                    buf[pos_x1 + 4] = c1
+                    buf[pos_x1 + 5] = c2
+                    buf[pos_x1 + 6] = c1
+                    buf[pos_x1 + 7] = c2
+                    buf[pos_x2 + 4] = c1
+                    buf[pos_x2 + 5] = c2
+                    buf[pos_x2 + 6] = c1
+                    buf[pos_x2 + 7] = c2
+                    idx += 4
 
 
 class ShapeSprite(SpriteContainer):
@@ -447,37 +437,34 @@ class ShapeSprite(SpriteContainer):
     子スプライトを持たない（持っても描画しない）
 
     Params:
-        shape (taple): 図形データ 0:mode(LINE|HLINE|VLINE|RECT|RECTF) 1:x1 2:y1 3:x2 4:y2 5:color
+        shape (list): 図形データ 0:mode(LINE|HLINE|VLINE|RECT|RECTF) 1:x1 2:y1 3:x2 4:y2 5:color
     """
 
     def __init__(self, parent, shape, name, z):
         super().__init__()
         self.init_params(parent, name, shape[2], shape[3], z)
         self.shape = shape
-        self.w = shape[3] - shape[1]
-        self.h = shape[4] - shape[2]
-        self.mode = shape[0]
-        self.color = shape[5]
-    
-    @micropython.native
+
     def show(self, frame_buffer, x, y):
         """フレームバッファに図形を描画"""
         if self.visible:
             x += self.x
             y += self.y
-            m = self.mode
             shape = self.shape
+            m = shape[0]
 
-            if m == 'LINE':
-                frame_buffer.line(shape[1], shape[2], shape[3], shape[4], self.color)
-            elif m == 'HLINE':
-                frame_buffer.hline(shape[1], shape[2], self.w, self.color)
-            elif m == 'VLINE':
-                frame_buffer.vline(shape[1], shape[2], self.h, self.color)
-            elif m == 'RECT':
-                frame_buffer.rect(shape[1], shape[2], shape[3], shape[4], self.color)
-            elif m == 'RECTF':
-                frame_buffer.rect(shape[1], shape[2], shape[3], shape[4], self.color, True)
+            if m == "LINE":
+                frame_buffer.line(shape[1], shape[2], shape[3], shape[4], shape[5])
+            elif m == "HLINE":
+                frame_buffer.hline(shape[1], shape[2], shape[3] - shape[1], shape[5])
+            elif m == "VLINE":
+                frame_buffer.vline(shape[1], shape[2], shape[4] - shape[2], shape[5])
+            elif m == "RECT":
+                frame_buffer.rect(shape[1], shape[2], shape[3], shape[4], shape[5])
+            elif m == "RECTF":
+                frame_buffer.rect(
+                    shape[1], shape[2], shape[3], shape[4], shape[5], True
+                )
 
 
 class SpritePool:
@@ -496,7 +483,7 @@ class SpritePool:
         pool (list): スプライトのリスト
     """
 
-    def __init__(self, stage, clz, size=32):
+    def __init__(self, stage, clz, size=64):
         self.stage = stage
         self.size = size
         self.clz = clz
@@ -507,6 +494,7 @@ class SpritePool:
             sp.parent = None
             sp.stage = stage
             sp.scene = stage.scene
+            sp.owner = self
             self.pool.append(sp)
 
     def get_instance(self):
@@ -516,22 +504,21 @@ class SpritePool:
             o.parent = None
             o.stage = self.stage
             o.scene = self.stage.scene
-            o.pool = self
-            o.enter()
+            o.owner = self
             return o
         else:
             o = self.pool.pop()
             o.parent = None
             o.stage = self.stage
             o.scene = self.stage.scene
-            o.pool = self
-            o.enter()
             return o
 
     def return_instance(self, sp):
-        """インスタンスを返却"""
-        sp.leave()
-        self.pool.append(sp)
+        """インスタンスを返却
+        設定したサイズを超えたら捨てる
+        """
+        if len(self.pool) < self.size:
+            self.pool.append(sp)
 
 
 class Stage(Sprite):
@@ -561,6 +548,7 @@ class Stage(Sprite):
         self.stage = self
         # シーン
         self.scene = scene
+        return self
 
     def show(self):
         """LCDに表示"""
@@ -849,6 +837,7 @@ class Scene:
             if random.randint(0, DEFAULT_FPS * 30) == 0:
                 gc.collect()
             return
+        # print(gc.mem_alloc())
 
         self.fps_ticks = t
         self.active = True
