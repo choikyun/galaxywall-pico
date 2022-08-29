@@ -89,7 +89,7 @@ def create_image_buffers(palette, index_images):
         1インデックスは 2x2 ピクセル
     """
     for i in index_images:
-        image = i[0]
+        image = memoryview(i[0])
         w = i[1]
         h = i[2]
         buf565 = buf.FrameBuffer(bytearray(w * h * 2), w, h, buf.RGB565)
@@ -291,7 +291,7 @@ class Sprite:
             sp.enter()
 
         self.visible = True
-        return self # チェーンできるように
+        return self  # チェーンできるように
 
     def leave(self):
         """退場
@@ -303,7 +303,7 @@ class Sprite:
         # 親から削除
         if self.parent is not None:
             self.parent.remove_sprite(self)
-        
+
         # プールに返却
         if self.owner is SpritePool:
             self.owner.pool.return_instance(self)
@@ -375,7 +375,7 @@ class BitmapSprite(Sprite):
 
     def set_bitmap(self, bitmap):
         """ビットマップ画像をセット"""
-        self.bmp = bitmap[0]
+        self.bmp = memoryview(bitmap[0])
         self.w = bitmap[1]
         self.h = bitmap[2]
 

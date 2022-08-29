@@ -46,7 +46,7 @@ class LCD(framebuf.FrameBuffer):
         self.dc(1)
 
         # LCD用のバッファ RGB565
-        self.buf = bytearray(LCD_W * LCD_H * 2)
+        self.buf = memoryview(bytearray(LCD_W * LCD_H * 2))
         super().__init__(self.buf, LCD_W, LCD_H, framebuf.RGB565)
 
         # 液晶の明るさ

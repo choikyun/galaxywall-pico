@@ -36,7 +36,7 @@ COLOR_STEP = const(3)
 SCORE_DIGIT = const(6)
 LINE_DIGIT = const(4)
 
-DEF_LINES = const(6)
+DEF_LINES = const(7)
 
 # パネル
 PANEL_W = const(20)
@@ -47,9 +47,9 @@ PANEL_OFFSET_INIT = const(20)
 PANEL_MAX = const(5)
 COLOR_MAX = const(6)
 
-DEF_DEAD_X = const(24)
+DEAD_X = const(24)
 DEAD_W = const(4)
-DEAD_H = const(20)
+DEAD_H = const(22)
 DEAD_BLANK = const(2)
 
 # スクロール
@@ -63,7 +63,7 @@ FLASH_INTERVAL = const(4)
 READY_DURATION = const(30 * 2)
 READY_INTERVAL = const(6)
 # combo メッセージ
-COMBO_DURATION = const(30)
+COMBO_DURATION = const(15)
 COMBO_INTERVAL = const(4)
 
 # 1列消去の遅延時間
@@ -110,7 +110,7 @@ OVER_W = const(152)
 OVER_H = const(24)
 
 # デッドライン
-DEAD_INTERVAL = const(120)
+DEAD_INTERVAL = const(15)
 
 # タイトル
 TITLE_W = const(240)
@@ -122,29 +122,35 @@ CREDIT_H = const(14)
 COMBO_W = (88)
 COMBO_H = (20)
 
-# エネルギー
-MAX_ENERGY = const(60)
-ENERGY_STEP = const(4)
-ENERGY_COL_FULL = const(0b00000_111111_00000)
-ENERGY_COL_MID = const(0b11111_111111_00000)
-ENERGY_COL_EMPTY = const(0b11111_000000_00000)
-ENERGY_RECOVERY = const(60)
+# デッドライン移動までの時間
+MAX_DEADTIME = const(60)
+DEADTIME_STEP = const(4)
+DEADTIME_COL_FULL = const(0b00000_111111_00000)
+DEADTIME_COL_MID = const(0b11111_111111_00000)
+DEADTIME_COL_EMPTY = const(0b11111_000000_00000)
+# 回復
+DEADTIME_RECOVERY = const(6)
 
-EPANEL_SPEED = const(1)
-
-# エネルギー消費
-LOST_FIRE = const(-1)
-LOST_MOVE = const(-1)
-LOST_SCROLL = const(-2)
+# デッドラインの最大値（X座標）
+MAX_DEADLINE = const(6)
 
 # 停止
 ITEM_SPEED = const(1)
-STOP_TIME = const(30 * 5)
+STOP_TIME = const(30 * 8)
 # アイテム最大数
-MAX_ITEM = (4)
+MAX_ITEM = (5)
+# アイテム出現間隔
+ITEM_INTERVAL = const(30)
 
 # 強制スクロールスコア
-FORCE_SCORE = const(10)
+FORCE_SCORE = const(1)
+
+SHIP_Z = 100
+SHOT_Z = 50
+DEAD_Z = 10
+PANEL_Z = 500
+ITEM_Z = 1000
+MES_Z = 10000
 
 # イベント
 EV_CHECK_HIT = const("event_check_hit_panel")
@@ -153,3 +159,5 @@ EV_DELETE_LINE = const("event_delete_line")
 """ライン消去"""
 EV_GAMEOVER = const("event_gameover")
 """ゲームオーバー"""
+EV_UPDATE_DEADLINE = const("event_update_deadline")
+"""デッドライン更新"""
