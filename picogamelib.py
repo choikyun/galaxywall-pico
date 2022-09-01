@@ -35,11 +35,15 @@ import picolcd114 as pl
 
 # 標準イベント
 EV_ENTER_FRAME = const("event_enter_frame")
-"""イベント 毎フレーム"""
+"""毎フレーム"""
 EV_SCENE_START = const("event_scene_start")
 """シーン開始"""
 EV_SCENE_END = const("event_scene_end")
 """シーン終了"""
+EV_ANIME_ENTER_FRAME = const("event_anime_enter_frame")
+"""アニメ用毎フレーム"""
+EV_ANIME_COMPLETE = const("event_anime_complete")
+"""アニメ終了"""
 
 # イベント プライオリティ
 EV_PRIORITY_HI = const(10)
@@ -89,10 +93,10 @@ def create_image_buffers(palette, index_images):
         1インデックスは 2x2 ピクセル
     """
     for i in index_images:
-        image = memoryview(i[0])
+        image = i[0]
         w = i[1]
         h = i[2]
-        buf565 = buf.FrameBuffer(bytearray(w * h * 2), w, h, buf.RGB565)
+        buf565 = buf.FrameBuffer(memoryview(bytearray(w * h * 2)), w, h, buf.RGB565)
         # バッファに描画
         pos = 0
         for y in range(0, h, 2):
@@ -113,7 +117,7 @@ class Sprite:
     Attributes:
         parent (Sprite): 親のスプライト
         chr_no (int): 画像No image_buffers に対応した番号
-        name (str or int): キャラクタ識別の名前 ユニークであること
+        name (str or int): キャラクタ識別の名前
         x (int): X座標（親からの相対座標）
         y (int): Y座標（親からの相対座標）
         z (int): Z座標 小さい順に描画
@@ -125,6 +129,7 @@ class Sprite:
         sprite_list (list): 子スプライトのリスト
         stage (Stage): ステージへのショートカット
         scene (Scene): シーンへのショートカット
+        event (EventManager): イベントマネージャーのショートカット
         frame_max (int): アニメ用フレーム数
         frame_index (int): アニメ用フレームのインデックス
         frame_wait (int): アニメ用フレーム切り替えウェイト
@@ -172,10 +177,12 @@ class Sprite:
         if parent is None:
             self.stage = None
             self.scene = None
+            self.event = None
             return
         self.parent = parent  # 親スプライト
         self.stage = parent.stage  # ステージ
         self.scene = parent.stage.scene  # シーン
+        self.event = parent.stage.event # イベント
         parent.add_sprite(self)  # 親に追加
 
     def init_anime_param(self, max=1, wait=4):
@@ -280,6 +287,7 @@ class Sprite:
                 sp.parent = None
                 sp.stage = None
                 sp.scene = None
+                sp.event = None
                 sp.visible = False
                 return
 
@@ -323,7 +331,7 @@ class Sprite:
 
 class SpriteContainer(Sprite):
     """スプライトのコンテナ
-    自身は描画しない.子スプライトのみ.
+    子スプライトのみ描画.
     """
 
     def __init__(self):
@@ -392,7 +400,7 @@ class BitmapSprite(Sprite):
             x += self.x
             y += self.y
 
-            buf = frame_buffer.buf
+            buf = memoryview(frame_buffer.buf)
             bmp = self.bmp
             w = self.w
             w2 = w * 2
@@ -494,6 +502,7 @@ class SpritePool:
             sp.parent = None
             sp.stage = stage
             sp.scene = stage.scene
+            sp.event = stage.event
             sp.owner = self
             self.pool.append(sp)
 
@@ -504,6 +513,7 @@ class SpritePool:
             o.parent = None
             o.stage = self.stage
             o.scene = self.stage.scene
+            o.event = self.stage.event
             o.owner = self
             return o
         else:
@@ -511,6 +521,7 @@ class SpritePool:
             o.parent = None
             o.stage = self.stage
             o.scene = self.stage.scene
+            o.event = self.stage.event
             return o
 
     def return_instance(self, sp):
@@ -526,17 +537,23 @@ class Stage(Sprite):
     LCDバッファにスプライトを描画する.
     スプライトのルートオブジェクト.
     ルートなので parent は None となる.
+
+    Attributes:
+        scene (Scene): シーン
+        event (EventManager): イベント管理
     """
 
-    def __init__(self, scene, name, x, y, z, w, h):
+    def __init__(self, scene, event, name, x, y, z, w, h):
         super().__init__()
-        self.init_params(scene, name, x, y, z, w, h)
+        self.init_params(scene, event, name, x, y, z, w, h)
 
-    def init_params(self, scene, name, x, y, z, w, h):
+    def init_params(self, scene, event, name, x, y, z, w, h):
         """パラメータをセット
 
         Params:
-            name (str or int): キャラクタ識別の名前 ユニークであること
+            scene (Scene): シーン
+            event (EventManager): イベント管理
+            name (str or int): キャラクタ識別の名前
             x (int): X座標（親からの相対座標）
             y (int): Y座標（親からの相対座標）
             z (int): Z座標 小さい順に描画
@@ -544,6 +561,8 @@ class Stage(Sprite):
             h (int): 高
         """
         super().init_params(None, 0, name, x, y, z, w, h)
+        # イベント
+        self.event = event
         # ステージ 自分自身
         self.stage = self
         # シーン
@@ -572,6 +591,7 @@ class Anime:
     """アニメーション管理
 
     Attributes:
+        name (str): 名前
         event (EventManager): イベントマネージャ
         ease_func (obj): イージング関数
         start (int) スタート値
@@ -581,7 +601,8 @@ class Anime:
         value (int): アニメーションの値
     """
 
-    def __init__(self, event, ease_func):
+    def __init__(self, name, event, ease_func):
+        self.name = name
         self.event = event
         self.func = ease_func
         self.is_playing = False  # 実行中フラグ
@@ -594,7 +615,7 @@ class Anime:
 
     def attach(self):
         """アニメーションを使用可能に"""
-        self.event.add_listner([EV_ENTER_FRAME, self, True])
+        self.event.add_listner([EV_ANIME_ENTER_FRAME, self, True])
 
     def detach(self):
         """使用できないように"""
@@ -621,7 +642,7 @@ class Anime:
         self.is_playing = False
         self.is_paused = True
 
-    def event_enter_frame(self, type, sender, option):
+    def event_anime_enter_frame(self, type, sender, option):
         """毎フレーム処理"""
         if self.is_playing:
             self.current_frame += 1
@@ -631,6 +652,10 @@ class Anime:
                 )
             else:
                 self.stop()
+                # アニメ終了のイベント
+                self.event.post(
+                    [EV_ANIME_COMPLETE, EV_PRIORITY_MID, 0, self, self.name]
+                )
 
 
 class EventManager:
@@ -792,19 +817,20 @@ class Scene:
     Attributes:
         name (int) シーン名
         stage (Stage): ステージ（スプライトのルート）
-        event_manager (EventManageer): イベント管理
+        event (EventManageer): イベント管理
         key (InputKey): キー管理
         fps_ticks (int): FPS用時間を記録
         fps (int): FPS デフォルト 30
         fps_interval (int): 次回までのインターバル
+        frame_count (int): 開始からのフレーム数
         active (bool): 現在シーンがアクティブ（フレーム処理中）か
     """
 
-    def __init__(self, name):
+    def __init__(self, name, event, stage, key):
         self.name = name
-        self.stage = None
-        self.event = None
-        self.key = None
+        self.stage = stage
+        self.event = event
+        self.key = key
 
         # FPS関連
         self.fps_ticks = utime.ticks_ms()
@@ -814,18 +840,14 @@ class Scene:
         self.frame_count = 0  # 経過フレーム
         self.director = None
 
-    def registerStagehands(self, stage, event, key):
-        """ステージ, イベント, キー入力 の登録"""
-        self.stage = stage
-        self.event = event
-        self.key = key
-
     def enter(self):
         """入場"""
         # ステージの有効化
         self.stage.enter()
         # 初回イベント
         self.event.post([EV_ENTER_FRAME, EV_PRIORITY_MID, 0, self, self.key])
+        self.event.post([EV_ANIME_ENTER_FRAME, EV_PRIORITY_MID, 0, self, self.key])
+
         self.frame_count = 0
 
     def action(self):
@@ -854,6 +876,7 @@ class Scene:
 
         # enter_frame イベントは毎フレーム発生
         self.event.post([EV_ENTER_FRAME, EV_PRIORITY_MID, 0, self, self.key])
+        self.event.post([EV_ANIME_ENTER_FRAME, EV_PRIORITY_MID, 0, self, self.key])
 
     def leave(self):
         """終了処理"""
@@ -889,6 +912,7 @@ class Director:
 
     def push(self, scene_name):
         """新しいシーンをプッシュ
+
         Params:
             scene_name (str): シーン名
         """
@@ -927,6 +951,7 @@ class Director:
 
     def __get_scene(self, scene_name):
         """シーンリストからシーンを取得
+
         Params:
             scene_name (str): シーン名
         Returns:

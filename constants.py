@@ -28,7 +28,7 @@ READY_H = const(24)
 # レベル
 LEVEL_MAX = const(5)
 # レベルアップの間隔
-LEVEL_UP_INTERVAL = const(10)
+LEVEL_UP_INTERVAL = const(20)
 # 3ラインで色が変わる
 COLOR_STEP = const(3)
 
@@ -54,7 +54,7 @@ DEAD_BLANK = const(2)
 
 # スクロール
 SCROLL_WAIT = const(6)  # ウェイト
-SCROLL_STOP_TIME = const(30)  # 一定時間停止
+SCROLL_STOP_TIME = const(45)  # 一定時間停止
 
 # 点滅
 FLASH_INTERVAL = const(4)
@@ -77,9 +77,8 @@ CHR_PANELX = const(9)
 CHR_FLASH = const(10)
 CHR_SHOT = const(11)
 CHR_DEADLINE = const(12)
-CHR_EPANEL = const(13)
-CHR_METEO = const(15)
-CHR_BURST = const(17)
+CHR_METEO = const(13)
+CHR_BURST = const(15)
 
 BMP_TITLE = const(0)
 BMP_OVER = const(1)
@@ -136,14 +135,20 @@ MAX_DEADLINE = const(6)
 
 # 停止
 ITEM_SPEED = const(1)
-STOP_TIME = const(30 * 8)
 # アイテム最大数
 MAX_ITEM = (5)
 # アイテム出現間隔
 ITEM_INTERVAL = const(30)
+# アイテム効果持続時間
+METEO_DURATION = (30 * 6)
+BURST_DURATION = (30 * 12)
 
 # 強制スクロールスコア
 FORCE_SCORE = const(1)
+
+# 画面ゆれ
+SHAKE_FRAME_MAX = const(2)
+SHAKE_DELTA = const(5)
 
 SHIP_Z = 100
 SHOT_Z = 50
