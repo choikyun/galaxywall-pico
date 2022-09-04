@@ -28,7 +28,7 @@ READY_H = const(24)
 # レベル
 LEVEL_MAX = const(5)
 # レベルアップの間隔
-LEVEL_UP_INTERVAL = const(20)
+LEVEL_UP_INTERVAL = const(10)
 # 3ラインで色が変わる
 COLOR_STEP = const(3)
 
@@ -77,8 +77,7 @@ CHR_PANELX = const(9)
 CHR_FLASH = const(10)
 CHR_SHOT = const(11)
 CHR_DEADLINE = const(12)
-CHR_METEO = const(13)
-CHR_BURST = const(15)
+CHR_ITEM = const(13)
 
 BMP_TITLE = const(0)
 BMP_OVER = const(1)
@@ -87,9 +86,9 @@ BMP_SCORE = const(3)
 BMP_LINES = const(4)
 BMP_INFO_BRIGHT = const(5)
 BMP_READY = const(6)
-BMP_CREDIT = const(7)
-BMP_COMBO = const(8)
-BMP_NUM = const(9)
+BMP_COMBO = const(7)
+BMP_NUM = const(8)
+BMP_CREDIT = const(18)
 
 # ポーズ画面
 SCORE_W = const(84)
@@ -115,11 +114,11 @@ DEAD_INTERVAL = const(15)
 TITLE_W = const(240)
 TITLE_H = const(70)
 
-CREDIT_W = const(168)
-CREDIT_H = const(14)
+CREDIT_W = const(144)
+CREDIT_H = const(10)
 
-COMBO_W = (88)
-COMBO_H = (20)
+COMBO_W = const(88)
+COMBO_H = const(20)
 
 # デッドライン移動までの時間
 MAX_DEADTIME = const(60)
@@ -128,34 +127,34 @@ DEADTIME_COL_FULL = const(0b00000_111111_00000)
 DEADTIME_COL_MID = const(0b11111_111111_00000)
 DEADTIME_COL_EMPTY = const(0b11111_000000_00000)
 # 回復
-DEADTIME_RECOVERY = const(6)
+DEADTIME_RECOVERY = const(10)
 
 # デッドラインの最大値（X座標）
 MAX_DEADLINE = const(6)
 
+ITEM_FREEZE = const(0)
+ITEM_BURST = const(1)
+
 # 停止
 ITEM_SPEED = const(1)
 # アイテム最大数
-MAX_ITEM = (5)
+MAX_ITEM = const(4)
 # アイテム出現間隔
 ITEM_INTERVAL = const(30)
 # アイテム効果持続時間
-METEO_DURATION = (30 * 6)
-BURST_DURATION = (30 * 12)
-
-# 強制スクロールスコア
-FORCE_SCORE = const(1)
+FREEZE_DURATION = const(30 * 5)
+BURST_DURATION = const(30 * 15)
 
 # 画面ゆれ
 SHAKE_FRAME_MAX = const(2)
-SHAKE_DELTA = const(5)
+SHAKE_DELTA = const(4)
 
-SHIP_Z = 100
-SHOT_Z = 50
-DEAD_Z = 10
-PANEL_Z = 500
-ITEM_Z = 1000
-MES_Z = 10000
+SHIP_Z = const(10)
+PANEL_Z = const(20)
+DEAD_Z = const(30)
+SHOT_Z = const(40)
+ITEM_Z = const(50)
+MES_Z = const(60)
 
 # イベント
 EV_CHECK_HIT = const("event_check_hit_panel")

@@ -4,45 +4,46 @@ https://www.waveshare.com/pico-lcd-1.14.htm
 """
 from machine import Pin, SPI, PWM
 import framebuf
-import time
+from micropython import const
 
-BL = 13
-DC = 8
-RST = 12
-MOSI = 11
-SCK = 10
-CS = 9
+
+_BL = const(13)
+_DC = const(8)
+_RST = const(12)
+_MOSI = const(11)
+_SCK = const(10)
+_CS = const(9)
 
 # 画面サイズ
-LCD_W = 240
-LCD_H = 135
+LCD_W = const(240)
+LCD_H = const(135)
 
 # キー入力
-KEY_UP = 0b0000_1000
-KEY_DOWN = 0b0000_0100
-KEY_LEFT = 0b0000_0010
-KEY_RIGHT = 0b0000_0001
-KEY_A = 0b0010_0000
-KEY_B = 0b0001_0000
-KEY_CENTER = 0b1000_0000
+KEY_UP = const(0b0000_1000)
+KEY_DOWN = const(0b0000_0100)
+KEY_LEFT = const(0b0000_0010)
+KEY_RIGHT = const(0b0000_0001)
+KEY_A = const(0b0010_0000)
+KEY_B = const(0b0001_0000)
+KEY_CENTER = const(0b1000_0000)
 
-LCD_BRIGHTNESS_MAX = 5
+LCD_BRIGHTNESS_MAX = const(5)
 # LCDの明るさ
-brightness_table = (4095, 8191, 16383, 32767, 65535)
+brightness_table = const((4095, 8191, 16383, 32767, 65535))
 
 class LCD(framebuf.FrameBuffer):
     """Pico LCD 1.14inch の画面表示制御"""
 
     def __init__(self):
-        self.cs = Pin(CS, Pin.OUT)
-        self.rst = Pin(RST, Pin.OUT)
+        self.cs = Pin(_CS, Pin.OUT)
+        self.rst = Pin(_RST, Pin.OUT)
 
         self.cs(1)
         # ボーレートは適当
         self.spi = SPI(
-            1, 100_000_000, polarity=0, phase=0, sck=Pin(SCK), mosi=Pin(MOSI), miso=None
+            1, 100_000_000, polarity=0, phase=0, sck=Pin(_SCK), mosi=Pin(_MOSI), miso=None
         )
-        self.dc = Pin(DC, Pin.OUT)
+        self.dc = Pin(_DC, Pin.OUT)
         self.dc(1)
 
         # LCD用のバッファ RGB565
@@ -50,7 +51,7 @@ class LCD(framebuf.FrameBuffer):
         super().__init__(self.buf, LCD_W, LCD_H, framebuf.RGB565)
 
         # 液晶の明るさ
-        self.pwm = PWM(Pin(BL))
+        self.pwm = PWM(Pin(_BL))
         self.pwm.freq(1000)
         self.brightness(2)
 

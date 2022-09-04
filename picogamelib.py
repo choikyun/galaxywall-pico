@@ -29,6 +29,7 @@ import framebuf as buf
 import random
 import gc
 import micropython
+import _thread
 from micropython import const
 
 import picolcd114 as pl
@@ -41,7 +42,7 @@ EV_SCENE_START = const("event_scene_start")
 EV_SCENE_END = const("event_scene_end")
 """シーン終了"""
 EV_ANIME_ENTER_FRAME = const("event_anime_enter_frame")
-"""アニメ用毎フレーム"""
+"""毎フレーム（アニメ）"""
 EV_ANIME_COMPLETE = const("event_anime_complete")
 """アニメ終了"""
 
@@ -63,6 +64,9 @@ trans_color = 0x618
 
 lcd = pl.LCD()
 """BGバッファ 全シーン共有"""
+
+#lock = _thread.allocate_lock()
+"""共有ロック"""
 
 
 def load_status():
@@ -96,7 +100,7 @@ def create_image_buffers(palette, index_images):
         image = i[0]
         w = i[1]
         h = i[2]
-        buf565 = buf.FrameBuffer(memoryview(bytearray(w * h * 2)), w, h, buf.RGB565)
+        buf565 = buf.FrameBuffer(bytearray(w * h * 2), w, h, buf.RGB565)
         # バッファに描画
         pos = 0
         for y in range(0, h, 2):
@@ -123,8 +127,6 @@ class Sprite:
         z (int): Z座標 小さい順に描画
         w (int): 幅
         h (int): 高さ
-        cx (int): X中心
-        cy (int): Y中心
         visible (bool): 表示するか
         sprite_list (list): 子スプライトのリスト
         stage (Stage): ステージへのショートカット
@@ -164,8 +166,6 @@ class Sprite:
         self.z = z
         self.w = w
         self.h = h
-        self.cx = self.w // 2 - 1
-        self.cy = self.h // 2 - 1
 
         self.init_parent(parent)  # 親スプライト
         self.init_anime_param()  # フレームアニメ
@@ -182,7 +182,7 @@ class Sprite:
         self.parent = parent  # 親スプライト
         self.stage = parent.stage  # ステージ
         self.scene = parent.stage.scene  # シーン
-        self.event = parent.stage.event # イベント
+        self.event = parent.stage.event  # イベント
         parent.add_sprite(self)  # 親に追加
 
     def init_anime_param(self, max=1, wait=4):
@@ -491,7 +491,7 @@ class SpritePool:
         pool (list): スプライトのリスト
     """
 
-    def __init__(self, stage, clz, size=64):
+    def __init__(self, stage, clz, size=32):
         self.stage = stage
         self.size = size
         self.clz = clz
@@ -569,21 +569,20 @@ class Stage(Sprite):
         self.scene = scene
         return self
 
-    def show(self):
-        """LCDに表示"""
-        if self.visible:
-            lcd.show()
-
     def action(self):
+        """スプライトのアクションを実行"""
+        if self.visible:
+            for s in self.sprite_list:
+                s.action()
+
+    def show(self):
         """ステージを更新
-        ・スプライトのアクションを実行
-        ・スプライトを描画
+        ・スプライトをバッファに描画
         """
         # BGバッファ クリア
         lcd.fill(bg_color)
-        # 子スプライトのアクションと描画
+        # 子スプライトをバッファに描画
         for s in self.sprite_list:
-            s.action()
             s.show(lcd, self.x, self.y)
 
 
@@ -855,7 +854,7 @@ class Scene:
         t = utime.ticks_ms()
         if utime.ticks_diff(t, self.fps_ticks) < self.fps_interval:  # FPS
             self.active = False
-            # gc 実行
+            # たまに gc 実行
             if random.randint(0, DEFAULT_FPS * 30) == 0:
                 gc.collect()
             return
@@ -870,9 +869,16 @@ class Scene:
 
         # イベント処理
         self.event.fire()
-        # ステージ アクションと表示
+
+        # ステージ アクション
         self.stage.action()
+
+        # バッファに描画
+        # 排他処理
+        #lock.acquire()
         self.stage.show()
+        #lock.release()
+        lcd.show()
 
         # enter_frame イベントは毎フレーム発生
         self.event.post([EV_ENTER_FRAME, EV_PRIORITY_MID, 0, self, self.key])
@@ -962,3 +968,16 @@ class Director:
                 return s
 
         return None
+
+
+def thread_send_buf_to_lcd():
+    """LCDにバッファを転送するスレッド
+
+    CORE1 が担当.
+    """
+    gc.collect()
+
+    while True:
+        lock.acquire()
+        lcd.show()
+        lock.release()
