@@ -4,43 +4,38 @@ __author__ = "Choi Gyun 2022"
 
 from micropython import const
 
-# 自機
-SHIP_W = const(20)
-SHIP_H = const(20)
-SHIP_MOVE_STEP = const(SHIP_H + 2)
-SHIP_MOVE_LIMIT = const(SHIP_MOVE_STEP * 5)
-SHIP_MOVE_FRAME_MAX = const(8)  # 移動にかかるフレーム数
+### オブジェクトのサイズ
+OBJ_W = const(20)
+OBJ_H = const(20)
+
+### 自機
+SHIP_MOVE_STEP = const(OBJ_H + 2)
+SHIP_MOVE_MAX = const(SHIP_MOVE_STEP * 5)
+SHIP_MOVE_FRAME_MAX = const(5)  # 移動にかかるフレーム数
 SHIP_FLASH_INTERVAL = const(2)
 
-# 弾
-SHOT_W = const(20)
-SHOT_H = const(20)
+KEY_WAIT = const(5)
+
+### 弾
 SHOT_PANEL_MAX = const(2)
 SHOT_SPEED = const(10)
 
-# フィールド
+### フィールド
 FIELD_W = const(12)
 FIELD_H = const(6)
 
 READY_W = const(108)
 READY_H = const(24)
 
-# レベル
-LEVEL_MAX = const(5)
-# レベルアップの間隔
-LEVEL_UP_INTERVAL = const(10)
-# 3ラインで色が変わる
-COLOR_STEP = const(3)
+COLOR_STEP = const(3)  # 色が変わる
 
-# スコア
+### スコア
 SCORE_DIGIT = const(6)
 LINE_DIGIT = const(4)
 
-DEF_LINES = const(7)
+DEF_LINES = const(6)
 
-# パネル
-PANEL_W = const(20)
-PANEL_H = const(20)
+### パネル
 PANEL_BLANK_Y = const(2)
 PANEL_OFFSET = const(20)
 PANEL_OFFSET_INIT = const(20)
@@ -52,25 +47,24 @@ DEAD_W = const(4)
 DEAD_H = const(22)
 DEAD_BLANK = const(2)
 
-# スクロール
-SCROLL_WAIT = const(6)  # ウェイト
-SCROLL_STOP_TIME = const(45)  # 一定時間停止
+### スクロール
+SCROLL_WAIT_NORMAL = const(4)  # ウェイト
+SCROLL_WAIT_EX = const(2)
+SCROLL_STOP_TIME = const(30)  # 一定時間停止
 
-# 点滅
-FLASH_INTERVAL = const(4)
+FLASH_INTERVAL = const(4)  # 点滅
 
-# メッセージ
+### メッセージ
 READY_DURATION = const(30 * 2)
 READY_INTERVAL = const(6)
+
 # combo メッセージ
-COMBO_DURATION = const(15)
+COMBO_DURATION = const(20)
 COMBO_INTERVAL = const(4)
 
-# 1列消去の遅延時間
-DELETE_DELAY = const(30)
+DELETE_DELAY = const(30)  # 1列消去の遅延時間
 
-# キャラクタ
-# メイン
+### キャラクタ
 CHR_SHIP = const(0)
 CHR_PANEL = const(3)
 CHR_PANELX = const(9)
@@ -78,6 +72,7 @@ CHR_FLASH = const(10)
 CHR_SHOT = const(11)
 CHR_DEADLINE = const(12)
 CHR_ITEM = const(13)
+CHR_AIM = const(15)
 
 BMP_TITLE = const(0)
 BMP_OVER = const(1)
@@ -89,8 +84,9 @@ BMP_READY = const(6)
 BMP_COMBO = const(7)
 BMP_NUM = const(8)
 BMP_CREDIT = const(18)
+BMP_EX = const(19)
 
-# ポーズ画面
+### ポーズ画面
 SCORE_W = const(84)
 SCORE_H = const(20)
 HI_W = const(28)
@@ -100,17 +96,17 @@ LINES_H = const(20)
 INFO_BRIGHT_W = const(44)
 INFO_BRIGHT_H = const(24)
 
+### 数字
 NUM_W = const(16)
 NUM_H = const(16)
 
-# ゲームオーバー
+### ゲームオーバー
 OVER_W = const(152)
 OVER_H = const(24)
 
-# デッドライン
-DEAD_INTERVAL = const(15)
+DEAD_INTERVAL = const(12)  # デッドラインバー減る間隔
 
-# タイトル
+### タイトル
 TITLE_W = const(240)
 TITLE_H = const(70)
 
@@ -120,41 +116,35 @@ CREDIT_H = const(10)
 COMBO_W = const(88)
 COMBO_H = const(20)
 
-# デッドライン移動までの時間
-MAX_DEADTIME = const(60)
+MAX_DEADTIME = const(60)  # デッドライン移動までの時間
 DEADTIME_STEP = const(4)
 DEADTIME_COL_FULL = const(0b00000_111111_00000)
 DEADTIME_COL_MID = const(0b11111_111111_00000)
 DEADTIME_COL_EMPTY = const(0b11111_000000_00000)
-# 回復
-DEADTIME_RECOVERY = const(10)
+DEADTIME_RECOVERY = const(8)  # 回復
+MAX_DEADLINE = const(6)  # デッドラインの最大値（X座標）
 
-# デッドラインの最大値（X座標）
-MAX_DEADLINE = const(6)
-
+### アイテム
 ITEM_FREEZE = const(0)
 ITEM_BURST = const(1)
+ITEM_SPEED = const(5)
+MAX_ITEM = const(5)  # アイテム最大数
+ITEM_INTERVAL = const(15)  # アイテム出現間隔
+FREEZE_DURATION = const(30 * 3)  # アイテム効果持続時間
+BURST_DURATION = const(30 * 6)
 
-# 停止
-ITEM_SPEED = const(1)
-# アイテム最大数
-MAX_ITEM = const(4)
-# アイテム出現間隔
-ITEM_INTERVAL = const(30)
-# アイテム効果持続時間
-FREEZE_DURATION = const(30 * 5)
-BURST_DURATION = const(30 * 15)
-
-# 画面ゆれ
+### 画面ゆれ
 SHAKE_FRAME_MAX = const(2)
 SHAKE_DELTA = const(4)
 
-SHIP_Z = const(10)
-PANEL_Z = const(20)
-DEAD_Z = const(30)
-SHOT_Z = const(40)
-ITEM_Z = const(50)
-MES_Z = const(60)
+### 各オブジェクト　重なり順
+PANEL_Z = const(10)
+DEAD_Z = const(20)
+SHOT_Z = const(30)
+SHIP_Z = const(40)
+AIM_Z = const(50)
+ITEM_Z = const(60)
+MES_Z = const(70)
 
 # イベント
 EV_CHECK_HIT = const("event_check_hit_panel")

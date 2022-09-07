@@ -32,7 +32,7 @@ import micropython
 import _thread
 from micropython import const
 
-import picolcd114 as pl
+import picolcd114 as lcd114
 
 # 標準イベント
 EV_ENTER_FRAME = const("event_enter_frame")
@@ -62,10 +62,10 @@ bg_color = 0x0000
 trans_color = 0x618
 """透過色"""
 
-lcd = pl.LCD()
+lcd = lcd114.LCD()
 """BGバッファ 全シーン共有"""
 
-#lock = _thread.allocate_lock()
+# lock = _thread.allocate_lock()
 """共有ロック"""
 
 
@@ -379,7 +379,7 @@ class BitmapSprite(Sprite):
         super().__init__()
         self.init_params(parent, 0, name, x, y, z, w, h)
         self.set_bitmap(bitmap)
-        self.lcd_w = pl.LCD_W * 2
+        self.lcd_w = lcd114.LCD_W * 2
 
     def set_bitmap(self, bitmap):
         """ビットマップ画像をセット"""
@@ -497,7 +497,7 @@ class SpritePool:
         self.clz = clz
         self.pool = []
         # プール作成
-        for i in range(size):
+        for _ in range(size):
             sp = clz()
             sp.parent = None
             sp.stage = stage
@@ -663,7 +663,7 @@ class EventManager:
 
     Attributes:
         queue (list): イベントキュー
-        listners (list): イベントリスナー 0:type 1:obj 2:bool
+        listners (list): イベントリスナー [0]:type [1]:obj [2]:bool
     """
 
     def __init__(self):
@@ -676,7 +676,7 @@ class EventManager:
         """イベントをポスト
 
         Params:
-            event (list): 0:type 1:priority 2:delay 3:sender 4:optiion
+            event (list): [0]:type [1]:priority [2]:delay [3]:sender [4]:optiion
         """
         # キューが空
         if len(self.queue) == 0:
@@ -753,7 +753,7 @@ class EventManager:
         すでにあったら追加しない
 
         Params:
-            listner (list): 0:type 1:リスナーを持つオブジェクト 2: 有効か
+            listner (list): [0]:type [1]:リスナーを持つオブジェクト [2]: 有効か
         """
         for li in self.listners:
             if li[0] == listner[0] and li[1] == listner[1]:
@@ -764,7 +764,7 @@ class EventManager:
         """リスナーを削除
 
         Params:
-            listner (list): 0:type 1:リスナーを持つオブジェクト 2: 有効か
+            listner (list): [0]:type [1]:リスナーを持つオブジェクト [2]: 有効か
         """
         for i in range(len(self.listners) - 1, -1, -1):
             if self.listners[i][0] == listner[0] and self.listners[i][1] is listner[1]:
@@ -795,7 +795,7 @@ class EventManager:
         """イベントリスナー呼び出し
 
         Params:
-            event (list): 0:type 1:priority 2:delay 3:sender 4:optiion
+            event (list): [0]:type [1]:priority [2]:delay [3]:sender [4]:optiion
         """
         for listner in self.listners:
             if event[0] == listner[0] and listner[2]:  # 有効なリスナーのみ
@@ -875,9 +875,9 @@ class Scene:
 
         # バッファに描画
         # 排他処理
-        #lock.acquire()
+        # lock.acquire()
         self.stage.show()
-        #lock.release()
+        # lock.release()
         lcd.show()
 
         # enter_frame イベントは毎フレーム発生
