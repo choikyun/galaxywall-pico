@@ -58,7 +58,7 @@ class MainScene(gl.Scene):
             1000,
         )
         # フィールド作成
-        self.fieldmap = FieldMap(self.stage, cons.FIELD_W, cons.FIELD_H)
+        self.fieldmap = FieldMap(self.stage)
 
     def enter(self):
         """ゲームの初期化処理"""
@@ -600,7 +600,7 @@ class Ship(gl.Sprite):
             cons.OBJ_H,
         ).enter()
         # 連弾
-        if self.burst_time > 0 and self.scene.fieldmap.existsPanel(1, self.y):
+        if self.burst_time > 0 and not self.scene.fieldmap.existsPanel(1, self.y):
             self.stage.shot_pool.get_instance().init_params(
                 self.stage,
                 cons.CHR_SHOT,
@@ -747,15 +747,14 @@ class Aim(gl.Sprite):
 
     def event_enter_frame(self, type, sender, option):
         """イベント:毎フレーム"""
-        y = self.scene.ship.y
-        if (
-            self.scene.ship.move_anime.is_playing
-            and self.scene.ship.move_anime.delta > 0
-        )
-            y += cons.OBJ_BH # 下移動の時は補正
+        if self.scene.ship.move_anime.is_playing:  # アニメ中
+            a = self.scene.ship.move_anime
+            y = a.start + a.delta
+        else:
+            y = self.scene.ship.y
+        self.y = y - self.scene.ship.y
 
         y //= cons.OBJ_BH
-
         m = self.scene.fieldmap.fieldmap
         offset = self.scene.fieldmap.scroll_offset
         pos = cons.FIELD_W - 1
