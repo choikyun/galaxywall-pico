@@ -70,6 +70,7 @@ class MainScene(gl.Scene):
         # ステータス
         game_status["lines"] = 0
         game_status["score"] = 0
+        self.gameover = False
 
         # デッドタイム
         self.deadtime = 0
@@ -111,12 +112,13 @@ class MainScene(gl.Scene):
             if self.key.push & lcd.KEY_A:
                 self.director.push("pause")
 
-            # アイテム出現
-            self.appear_item()
+            if not self.gameover:
+                # アイテム出現
+                self.appear_item()
 
-            # 一定時間で deadline が移動
-            if self.frame_count % cons.DEAD_INTERVAL == 0:
-                self.update_deadtime_bar(-1)
+                # 一定時間で deadline が移動
+                if self.frame_count % cons.DEAD_INTERVAL == 0:
+                    self.update_deadtime_bar(-1)
 
     def appear_item(self):
         """アイテム出現"""
@@ -136,7 +138,7 @@ class MainScene(gl.Scene):
                 item_type,
                 "item",
                 lcd.LCD_W,
-                random.randint(0, 5) * (cons.OBJ_H + cons.PANEL_BLANK_Y),
+                random.randint(0, 5) * cons.OBJ_BH,
                 cons.ITEM_Z,
                 cons.OBJ_W,
                 cons.OBJ_H,
@@ -597,8 +599,8 @@ class Ship(gl.Sprite):
             cons.OBJ_W,
             cons.OBJ_H,
         ).enter()
-        # 連射
-        if self.burst_time > 0:
+        # 連弾
+        if self.burst_time > 0 and self.scene.fieldmap.existsPanel(1, self.y):
             self.stage.shot_pool.get_instance().init_params(
                 self.stage,
                 cons.CHR_SHOT,
@@ -745,7 +747,14 @@ class Aim(gl.Sprite):
 
     def event_enter_frame(self, type, sender, option):
         """イベント:毎フレーム"""
-        y = self.scene.ship.y // (cons.OBJ_H + cons.PANEL_BLANK_Y)
+        y = self.scene.ship.y
+        if (
+            self.scene.ship.move_anime.is_playing
+            and self.scene.ship.move_anime.delta > 0
+        )
+            y += cons.OBJ_BH # 下移動の時は補正
+
+        y //= cons.OBJ_BH
 
         m = self.scene.fieldmap.fieldmap
         offset = self.scene.fieldmap.scroll_offset
@@ -934,11 +943,9 @@ class FieldMap:
     Attributes:
         stage (Stage): ステージ（スプライトのルート）
         scene (Scene): ステージの所属しているシーン
-        w (int): 幅
-        h (int): 高さ
     """
 
-    def __init__(self, stage, w, h):
+    def __init__(self, stage):
         self.stage = stage
         self.scene = stage.scene
         # イベントリスナー登録
@@ -985,7 +992,7 @@ class FieldMap:
             (bool): 存在するか
         """
         px = x // cons.OBJ_W
-        py = y // (cons.OBJ_H + cons.PANEL_BLANK_Y)
+        py = y // cons.OBJ_BH
         if self.fieldmap[py][px] is not None:
             return True
         else:
@@ -1045,7 +1052,7 @@ class FieldMap:
             color (int): カラー
         """
         sp_x = x * cons.OBJ_W
-        sp_y = y * (cons.OBJ_H + cons.PANEL_BLANK_Y)
+        sp_y = y * cons.OBJ_BH
         self.fieldmap[y][x] = (
             self.stage.panel_pool.get_instance()
             .init_params(
@@ -1069,7 +1076,7 @@ class FieldMap:
             shot_panel (ShotPanel): スプライト
         """
         x = shot_panel.x // cons.OBJ_W
-        y = shot_panel.y // (cons.OBJ_H + cons.PANEL_BLANK_Y)
+        y = shot_panel.y // cons.OBJ_BH
         hit = False
 
         # 端まで行った or ひとつ先
@@ -1116,7 +1123,7 @@ class FieldMap:
         for y in range(cons.FIELD_H):
             p = self.fieldmap[y][x]
             if p is not None:
-                p.y = y * (cons.OBJ_H + cons.PANEL_BLANK_Y)
+                p.y = y * cons.OBJ_BH
 
     def __get_panel_color(self, x):
         """パネルの色を取得
@@ -1239,6 +1246,8 @@ class FieldMap:
                             gl.EV_ANIME_COMPLETE,
                         ],
                     )
+                    # シーンのフラグ
+                    self.scene.gameover = True
                     return True
         return False
 

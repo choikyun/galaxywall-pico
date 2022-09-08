@@ -7,6 +7,7 @@ from micropython import const
 ### オブジェクトのサイズ
 OBJ_W = const(20)
 OBJ_H = const(20)
+OBJ_BH = const(OBJ_H + 2)
 
 ### 自機
 SHIP_MOVE_STEP = const(OBJ_H + 2)
@@ -36,7 +37,6 @@ LINE_DIGIT = const(4)
 DEF_LINES = const(6)
 
 ### パネル
-PANEL_BLANK_Y = const(2)
 PANEL_OFFSET = const(20)
 PANEL_OFFSET_INIT = const(20)
 PANEL_MAX = const(5)
@@ -45,7 +45,6 @@ COLOR_MAX = const(6)
 DEAD_X = const(24)
 DEAD_W = const(4)
 DEAD_H = const(22)
-DEAD_BLANK = const(2)
 
 ### スクロール
 SCROLL_WAIT_NORMAL = const(4)  # ウェイト
