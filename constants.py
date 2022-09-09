@@ -61,7 +61,7 @@ READY_INTERVAL = const(6)
 COMBO_DURATION = const(20)
 COMBO_INTERVAL = const(4)
 
-DELETE_DELAY = const(30)  # 1列消去の遅延時間
+DELETE_DELAY = const(15)  # 1列消去の遅延時間
 
 ### キャラクタ
 CHR_SHIP = const(0)
@@ -103,7 +103,7 @@ NUM_H = const(16)
 OVER_W = const(152)
 OVER_H = const(24)
 
-DEAD_INTERVAL = const(12)  # デッドラインバー減る間隔
+DEAD_INTERVAL = const(9)  # デッドラインバー減る間隔
 
 ### タイトル
 TITLE_W = const(240)
@@ -120,7 +120,7 @@ DEADTIME_STEP = const(4)
 DEADTIME_COL_FULL = const(0b00000_111111_00000)
 DEADTIME_COL_MID = const(0b11111_111111_00000)
 DEADTIME_COL_EMPTY = const(0b11111_000000_00000)
-DEADTIME_RECOVERY = const(8)  # 回復
+DEADTIME_RECOVERY = const(15)  # 回復
 MAX_DEADLINE = const(6)  # デッドラインの最大値（X座標）
 
 ### アイテム

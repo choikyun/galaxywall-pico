@@ -239,7 +239,7 @@ class PauseScene(gl.Scene):
 
         # 数値
         self.lines = ScoreNum(
-            self.stage, cons.LINE_DIGIT, "score_num", 108, 22, cons.MES_Z
+            self.stage, cons.LINE_DIGIT, "score_num", 140, 22, cons.MES_Z
         )
         self.score = ScoreNum(
             self.stage, cons.SCORE_DIGIT, "score_num", 108, 44, cons.MES_Z
@@ -339,7 +339,7 @@ class OverScene(gl.Scene):
 
         # 数値表示
         self.lines_num = ScoreNum(
-            self.stage, cons.LINE_DIGIT, "lines_num", 108, 50, cons.MES_Z
+            self.stage, cons.LINE_DIGIT, "lines_num", 140, 50, cons.MES_Z
         )
         self.score_num = ScoreNum(
             self.stage, cons.SCORE_DIGIT, "score_num", 108, 72, cons.MES_Z
@@ -736,7 +736,8 @@ class Aim(gl.Sprite):
 
     def enter(self):
         self.event.add_listner([gl.EV_ENTER_FRAME, self, True])
-        return super().enter()
+        super().enter()
+        return self
 
     def leave(self):
         self.event.remove_all_listner(self)
@@ -749,12 +750,10 @@ class Aim(gl.Sprite):
         """イベント:毎フレーム"""
         if self.scene.ship.move_anime.is_playing:  # アニメ中
             a = self.scene.ship.move_anime
-            y = a.start + a.delta
+            y = (a.start + a.delta) // cons.OBJ_BH  # 移動先の座標
         else:
-            y = self.scene.ship.y
-        self.y = y - self.scene.ship.y
-
-        y //= cons.OBJ_BH
+            y = self.scene.ship.y // cons.OBJ_BH
+        
         m = self.scene.fieldmap.fieldmap
         offset = self.scene.fieldmap.scroll_offset
         pos = cons.FIELD_W - 1
@@ -762,7 +761,6 @@ class Aim(gl.Sprite):
             if m[y][x] is not None and m[y][x].chr_no < cons.CHR_FLASH:
                 pos = x - 1
                 break
-
         # X座標更新
         if pos < (cons.FIELD_W - 1):
             self.x = pos * cons.OBJ_W + offset
@@ -937,12 +935,7 @@ class ScoreNum(gl.SpriteContainer):
 # その他
 # -----------------------------------------------------
 class FieldMap:
-    """フィールドマップの管理
-
-    Attributes:
-        stage (Stage): ステージ（スプライトのルート）
-        scene (Scene): ステージの所属しているシーン
-    """
+    """フィールドマップの管理"""
 
     def __init__(self, stage):
         self.stage = stage
