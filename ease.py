@@ -1,5 +1,5 @@
 """イージング
-使いそうなもののみ
+よく使うもののみ
 """
 __author__ = "Choi Gyun 2022"
 
@@ -104,8 +104,8 @@ def inout_elastic(current, start, delta, total):
     if current == 0:
         return start
 
-    current /= total
-    if current / 2 == 2:
+    current /= total / 2
+    if current == 2:
         return start + delta
 
     if p == 0:

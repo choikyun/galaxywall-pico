@@ -268,11 +268,11 @@ class PauseScene(gl.Scene):
             ):
                 game_status["brightness"] += 1
                 gl.lcd.brightness(game_status["brightness"])
-                gl.save_status(game_status)
+                gl.save_status(game_status, cons.FILENAME)
             elif self.key.push & lcd.KEY_DOWN and game_status["brightness"] > 0:
                 game_status["brightness"] -= 1
                 gl.lcd.brightness(game_status["brightness"])
-                gl.save_status(game_status)
+                gl.save_status(game_status, cons.FILENAME)
 
             # ポーズ解除
             if self.key.push & lcd.KEY_A:
@@ -351,7 +351,7 @@ class OverScene(gl.Scene):
     def enter(self):
         if game_status["score"] > game_status["hi"]:
             game_status["hi"] = game_status["score"]
-            gl.save_status(game_status)
+            gl.save_status(game_status, cons.FILENAME)
 
         self.lines_num.set_value(game_status["lines"])
         self.score_num.set_value(game_status["score"])
@@ -557,7 +557,7 @@ class Ship(gl.Sprite):
         self.aim = Aim().init_params(
             self, cons.CHR_AIM, "aim", 0, self.y, cons.AIM_Z, cons.OBJ_W, cons.OBJ_H
         )
-        self.move_anime = gl.Anime("ship_move", self.event, ease.out_quart)  # 移動アニメ
+        self.move_anime = gl.Anime("ship_move", self.event, ease.out_elastic)  # 移動アニメ
         self.move_anime.attach()  # アニメ有効化
 
         # イベントリスナー登録
@@ -569,7 +569,6 @@ class Ship(gl.Sprite):
         self.burst_time = 0
         self.flash_time = 0
         self.flash = False
-        self.key_wait = cons.KEY_WAIT
         super().enter()
 
     def action(self):
@@ -584,29 +583,37 @@ class Ship(gl.Sprite):
         """弾発射"""
         if self.fire_panel_num >= cons.SHOT_PANEL_MAX:
             return
-        if self.scene.fieldmap.existsPanel(0, self.y):
-            return
 
+        # 移動中の場合
+        if self.move_anime.is_playing:  # アニメ中
+            y = self.move_anime.start + self.move_anime.delta  # 移動先の座標
+        else:
+            y = self.y
+
+        # パネルを置けるか
+        if self.scene.fieldmap.existsPanel(0, y):
+            return
         self.fire_panel_num += 1
+
         # 新しい弾
         self.stage.shot_pool.get_instance().init_params(
             self.stage,
             cons.CHR_SHOT,
             "shot",
-            self.x,
-            self.y,
+            0,
+            y,
             cons.SHOT_Z,
             cons.OBJ_W,
             cons.OBJ_H,
         ).enter()
         # 連弾
-        if self.burst_time > 0 and not self.scene.fieldmap.existsPanel(1, self.y):
+        if self.burst_time > 0 and not self.scene.fieldmap.existsPanel(cons.OBJ_W, y):
             self.stage.shot_pool.get_instance().init_params(
                 self.stage,
                 cons.CHR_SHOT,
                 "shot",
-                self.x + cons.OBJ_W,
-                self.y,
+                cons.OBJ_W,
+                y,
                 cons.SHOT_Z,
                 cons.OBJ_W,
                 cons.OBJ_H,
@@ -663,7 +670,7 @@ class Ship(gl.Sprite):
             self.flash_time = 0
 
         # 弾発射
-        if option.push & lcd.KEY_B and not self.move_anime.is_playing:
+        if option.push & lcd.KEY_B:
             self.__fire_panel()
 
         # 移動中
@@ -736,8 +743,7 @@ class Aim(gl.Sprite):
 
     def enter(self):
         self.event.add_listner([gl.EV_ENTER_FRAME, self, True])
-        super().enter()
-        return self
+        return super().enter()
 
     def leave(self):
         self.event.remove_all_listner(self)
@@ -753,7 +759,7 @@ class Aim(gl.Sprite):
             y = (a.start + a.delta) // cons.OBJ_BH  # 移動先の座標
         else:
             y = self.scene.ship.y // cons.OBJ_BH
-        
+
         m = self.scene.fieldmap.fieldmap
         offset = self.scene.fieldmap.scroll_offset
         pos = cons.FIELD_W - 1
@@ -1009,10 +1015,13 @@ class FieldMap:
         """
         for y in range(cons.FIELD_H):
             for x in range(cons.FIELD_W):
-                p = self.fieldmap[y][x]
-                if p is not None:
-                    p.leave()  # プールに返却
+                if self.fieldmap[y][x] is not None:
                     self.fieldmap[y][x] = None
+        # ステージからスプライト削除
+        for i in range(len(self.stage.sprite_list) - 1, -1, -1):
+            if self.stage.sprite_list[i].name == "panel":
+                self.stage.sprite_list[i].leave()
+
 
     def set_new_line(self, x=cons.FIELD_W - 1):
         """新しいラインを作成
@@ -1064,7 +1073,7 @@ class FieldMap:
         """弾とパネルの当たり判定
         フラッシュ中のパネルは通過する.
 
-        Params;
+        Params:
             shot_panel (ShotPanel): スプライト
         """
         x = shot_panel.x // cons.OBJ_W
@@ -1355,16 +1364,16 @@ bmp_data = [
     (dat.num_8, 16, 16),
     (dat.num_9, 16, 16),
     (dat.credit, 144, 10),  # クレジット
-    (dat.ex, 32, 14),  # EX
+    (dat.ex, 32, 14),  # EXアイコン
 ]
 
 # ステータスをロード
-game_status = gl.load_status()
+game_status = gl.load_status(cons.FILENAME)
 
 if game_status is None:
     # デフォルト
     game_status = {"mode": 0, "score": 0, "hi": 0, "lines": 0, "brightness": 2}
-    gl.save_status(game_status)
+    gl.save_status(game_status, cons.FILENAME)
 
 # LCDの明るさ
 gl.lcd.brightness(game_status["brightness"])

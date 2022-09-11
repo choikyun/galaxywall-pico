@@ -4,6 +4,18 @@ __author__ = "Choi Gyun 2022"
 
 from micropython import const
 
+### ゲームバランス調整
+SCROLL_WAIT_NORMAL = const(3) # スクロール ノーマル
+SCROLL_WAIT_EX = const(2) # EXモード
+SCROLL_STOP_TIME = const(30)  # 一定時間停止
+DELETE_DELAY = const(30)  # 1列消去の遅延時間
+DEAD_INTERVAL = const(9)  # デッドラインバー減る間隔
+DEADTIME_RECOVERY = const(10)  # 時間回復量
+MAX_ITEM = const(5)  # アイテム最大数
+ITEM_INTERVAL = const(15)  # アイテム出現間隔
+FREEZE_DURATION = const(30 * 3)  # アイテム効果持続時間
+BURST_DURATION = const(30 * 6)
+
 ### オブジェクトのサイズ
 OBJ_W = const(20)
 OBJ_H = const(20)
@@ -12,10 +24,8 @@ OBJ_BH = const(OBJ_H + 2)
 ### 自機
 SHIP_MOVE_STEP = const(OBJ_H + 2)
 SHIP_MOVE_MAX = const(SHIP_MOVE_STEP * 5)
-SHIP_MOVE_FRAME_MAX = const(5)  # 移動にかかるフレーム数
+SHIP_MOVE_FRAME_MAX = const(6)  # 移動にかかるフレーム数
 SHIP_FLASH_INTERVAL = const(2)
-
-KEY_WAIT = const(5)
 
 ### 弾
 SHOT_PANEL_MAX = const(2)
@@ -34,34 +44,28 @@ COLOR_STEP = const(3)  # 色が変わる
 SCORE_DIGIT = const(6)
 LINE_DIGIT = const(4)
 
-DEF_LINES = const(6)
+### ライン
+DEF_LINES = const(6) # フィールド初期値
 
 ### パネル
 PANEL_OFFSET = const(20)
 PANEL_OFFSET_INIT = const(20)
-PANEL_MAX = const(5)
 COLOR_MAX = const(6)
 
+### バー
 DEAD_X = const(24)
 DEAD_W = const(4)
 DEAD_H = const(22)
 
-### スクロール
-SCROLL_WAIT_NORMAL = const(4)  # ウェイト
-SCROLL_WAIT_EX = const(2)
-SCROLL_STOP_TIME = const(30)  # 一定時間停止
-
+### 点滅
 FLASH_INTERVAL = const(4)  # 点滅
 
 ### メッセージ
 READY_DURATION = const(30 * 2)
 READY_INTERVAL = const(6)
-
 # combo メッセージ
-COMBO_DURATION = const(20)
+COMBO_DURATION = const(24)
 COMBO_INTERVAL = const(4)
-
-DELETE_DELAY = const(15)  # 1列消去の遅延時間
 
 ### キャラクタ
 CHR_SHIP = const(0)
@@ -103,8 +107,6 @@ NUM_H = const(16)
 OVER_W = const(152)
 OVER_H = const(24)
 
-DEAD_INTERVAL = const(9)  # デッドラインバー減る間隔
-
 ### タイトル
 TITLE_W = const(240)
 TITLE_H = const(70)
@@ -120,17 +122,12 @@ DEADTIME_STEP = const(4)
 DEADTIME_COL_FULL = const(0b00000_111111_00000)
 DEADTIME_COL_MID = const(0b11111_111111_00000)
 DEADTIME_COL_EMPTY = const(0b11111_000000_00000)
-DEADTIME_RECOVERY = const(15)  # 回復
 MAX_DEADLINE = const(6)  # デッドラインの最大値（X座標）
 
 ### アイテム
 ITEM_FREEZE = const(0)
 ITEM_BURST = const(1)
 ITEM_SPEED = const(5)
-MAX_ITEM = const(5)  # アイテム最大数
-ITEM_INTERVAL = const(15)  # アイテム出現間隔
-FREEZE_DURATION = const(30 * 3)  # アイテム効果持続時間
-BURST_DURATION = const(30 * 6)
 
 ### 画面ゆれ
 SHAKE_FRAME_MAX = const(2)
@@ -154,3 +151,6 @@ EV_GAMEOVER = const("event_gameover")
 """ゲームオーバー"""
 EV_UPDATE_DEADLINE = const("event_update_deadline")
 """デッドライン更新"""
+
+# セーブデータ
+FILENAME = const("gw100.json")

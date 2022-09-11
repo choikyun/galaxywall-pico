@@ -69,19 +69,19 @@ lcd = lcd114.LCD()
 """共有ロック"""
 
 
-def load_status():
+def load_status(filename):
     """ステータスロード"""
     try:
-        d = json.load(io.open("status.json", "r"))
+        d = json.load(io.open(filename, "r"))
     except:
         d = None
     return d
 
 
-def save_status(d):
+def save_status(d, filename):
     """ステータスセーブ"""
     try:
-        json.dump(d, io.open("status.json", "w"))
+        json.dump(d, io.open(filename, "w"))
     except:
         pass
 
