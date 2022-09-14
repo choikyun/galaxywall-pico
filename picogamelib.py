@@ -8,9 +8,8 @@
     スプライトを管理するステージに登録することで表示.
 ・ステージ
     ステージは BG と スプライト を描画して LCD に転送する.
-    todo: バックバッファに対応する？
 ・イベント
-    オブジェクト間の連携はイベントを使う.
+    オブジェクト間の連携はイベントで行う.
     各オブジェクトは初期化時にイベントリスナーを登録する.
 ・シーン
     タイトル画面, ゲーム画面, ポーズ画面 など各画面はシーンで表現.
@@ -26,24 +25,21 @@ import io
 import json
 import utime
 import framebuf as buf
-import random
-import gc
 import micropython
-import _thread
+import gc
+
+#import _thread
 from micropython import const
 
 import picolcd114 as lcd114
 
+
 # 標準イベント
-EV_ENTER_FRAME = const("event_enter_frame")
+EV_ENTER_FRAME = const("ev_enter_frame")
 """毎フレーム"""
-EV_SCENE_START = const("event_scene_start")
-"""シーン開始"""
-EV_SCENE_END = const("event_scene_end")
-"""シーン終了"""
-EV_ANIME_ENTER_FRAME = const("event_anime_enter_frame")
+EV_ANIME_ENTER_FRAME = const("ev_anime_enter_frame")
 """毎フレーム（アニメ）"""
-EV_ANIME_COMPLETE = const("event_anime_complete")
+EV_ANIME_COMPLETE = const("ev_anime_complete")
 """アニメ終了"""
 
 # イベント プライオリティ
@@ -65,7 +61,7 @@ trans_color = 0x618
 lcd = lcd114.LCD()
 """BGバッファ 全シーン共有"""
 
-# lock = _thread.allocate_lock()
+#lock = _thread.allocate_lock()
 """共有ロック"""
 
 
@@ -83,12 +79,12 @@ def save_status(d, filename):
     try:
         json.dump(d, io.open(filename, "w"))
     except:
+        # セーブできない
         pass
 
 
 def create_image_buffers(palette, index_images):
-    """インデックスカラー から RGB565 のフレームバッファを作成
-    スプライトが参照するイメージバッファ（RGB565）をキャラクタデータから作成する.
+    """インデックスカラーのキャラデータ から RGB565 の描画用フレームバッファを作成
     LCDが小さいので縦横サイズは2倍にする.
 
     Params:
@@ -97,9 +93,7 @@ def create_image_buffers(palette, index_images):
         1インデックスは 2x2 ピクセル
     """
     for i in index_images:
-        image = i[0]
-        w = i[1]
-        h = i[2]
+        image, w, h = i
         buf565 = buf.FrameBuffer(bytearray(w * h * 2), w, h, buf.RGB565)
         # バッファに描画
         pos = 0
@@ -116,10 +110,10 @@ class Sprite:
     表示キャラクタの基本単位.
     スプライトは入れ子にできる.
     座標は親スプライトからの相対位置となる.
-    parent を設定すると生成時に親のリスト登録する（表示される）
+    親のスプライトリストに登録すると描画される.
 
     Attributes:
-        parent (Sprite): 親のスプライト
+        parent (Sprite): 親スプライト
         chr_no (int): 画像No image_buffers に対応した番号
         name (str or int): キャラクタ識別の名前
         x (int): X座標（親からの相対座標）
@@ -135,6 +129,7 @@ class Sprite:
         frame_max (int): アニメ用フレーム数
         frame_index (int): アニメ用フレームのインデックス
         frame_wait (int): アニメ用フレーム切り替えウェイト
+        frame_wait_def (int): アニメ用フレーム切り替えウェイト デフォルト値
         owner (obj): スプライトの所有者
     """
 
@@ -168,16 +163,18 @@ class Sprite:
         self.h = h
 
         self.init_parent(parent)  # 親スプライト
-        self.init_anime_param()  # フレームアニメ
+        self.init_frame_param()  # フレームアニメ
 
         return self  # チェーンできるように
 
-    def init_parent(self, parent):
-        """親スプライトを初期化"""
+    def init_parent(self, parent=None):
+        """親スプライトを初期化
+        
+        Params:
+            parent (Sprite): 親スプライト
+        """
         if parent is None:
-            self.stage = None
-            self.scene = None
-            self.event = None
+            self.stage = self.scene = self.event = None
             return
         self.parent = parent  # 親スプライト
         self.stage = parent.stage  # ステージ
@@ -185,10 +182,16 @@ class Sprite:
         self.event = parent.stage.event  # イベント
         parent.add_sprite(self)  # 親に追加
 
-    def init_anime_param(self, max=1, wait=4):
-        """フレームアニメ用パラメータを初期化"""
+    def init_frame_param(self, max=1, wait=4):
+        """フレームアニメ用パラメータを初期化
+
+        Params:
+            max (int): 最大フレーム数
+            wait (int): 次のフレームまでのウェイト
+        """
         self.frame_max = max
         self.frame_wait = wait
+        self.frame_wait_def = wait
         self.frame_index = 0
 
     def show(self, frame_buffer, x, y):
@@ -221,7 +224,7 @@ class Sprite:
             # アニメ用のフレームカウント
             self.frame_wait -= 1
             if self.frame_wait == 0:
-                self.frame_wait = 8
+                self.frame_wait = self.frame_wait_def
                 self.frame_index = (self.frame_index + 1) % self.frame_max
 
     def hit_test(self, sp):
@@ -386,6 +389,7 @@ class BitmapSprite(Sprite):
         self.bmp = memoryview(bitmap[0])
         self.w = bitmap[1]
         self.h = bitmap[2]
+        self.w2 = self.w * 2
 
     @micropython.native
     def show(self, frame_buffer, x, y):
@@ -403,7 +407,7 @@ class BitmapSprite(Sprite):
             buf = memoryview(frame_buffer.buf)
             bmp = self.bmp
             w = self.w
-            w2 = w * 2
+            w2 = self.w2
             h = self.h
             lcd_w = self.lcd_w
             start = x * 2 + y * lcd_w
@@ -482,7 +486,7 @@ class SpritePool:
 
     Params:
         stage (Stage): 所属するステージ
-        name (str): クラス
+        cls (): クラス
         size (int): プールのサイズ
 
     Attributes:
@@ -593,6 +597,8 @@ class Anime:
         name (str): 名前
         event (EventManager): イベントマネージャ
         ease_func (obj): イージング関数
+        is_playing (bool): 実行中フラグ
+        is_paused (bool): ポーズ中フラグ
         start (int) スタート値
         delta (int) 変化量
         current_frame (int) 現在のフレーム
@@ -604,8 +610,8 @@ class Anime:
         self.name = name
         self.event = event
         self.func = ease_func
-        self.is_playing = False  # 実行中フラグ
-        self.is_paused = False  # ポーズ中フラグ
+        self.is_playing = False
+        self.is_paused = False
         self.start = 0
         self.delta = 0
         self.current_frame = 0
@@ -641,8 +647,8 @@ class Anime:
         self.is_playing = False
         self.is_paused = True
 
-    def event_anime_enter_frame(self, type, sender, option):
-        """毎フレーム処理"""
+    def ev_anime_enter_frame(self, type, sender, option):
+        """イベント: 毎フレーム処理"""
         if self.is_playing:
             self.current_frame += 1
             if self.current_frame <= self.total_frame:
@@ -810,7 +816,7 @@ class Scene:
     Params:
         name (str): シーン名
         stage (Stage): ステージ（スプライトのルート）
-        event_manager (EventManageer): イベント管理
+        event (EventManageer): イベント管理
         key (InputKey): キー管理
 
     Attributes:
@@ -855,10 +861,9 @@ class Scene:
         if utime.ticks_diff(t, self.fps_ticks) < self.fps_interval:  # FPS
             self.active = False
             # たまに gc 実行
-            if random.randint(0, DEFAULT_FPS * 30) == 0:
+            if self.frame_count % (DEFAULT_FPS * 10) == 0:
                 gc.collect()
             return
-        # print(gc.mem_alloc())
 
         self.fps_ticks = t
         self.active = True
@@ -875,9 +880,9 @@ class Scene:
 
         # バッファに描画
         # 排他処理
-        # lock.acquire()
+        #lock.acquire()
         self.stage.show()
-        # lock.release()
+        #lock.release()
         lcd.show()
 
         # enter_frame イベントは毎フレーム発生
@@ -970,14 +975,12 @@ class Director:
         return None
 
 
-def thread_send_buf_to_lcd():
-    """LCDにバッファを転送するスレッド
-
-    CORE1 が担当.
-    """
-    gc.collect()
-
-    while True:
-        lock.acquire()
-        lcd.show()
-        lock.release()
+#def thread_send_buf_to_lcd():
+#    """LCDにバッファを転送するスレッド
+#
+#    CORE1 が担当.
+#    """
+#    while True:
+#        lock.acquire()
+#        lcd.show()
+#        lock.release()

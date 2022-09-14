@@ -5,7 +5,7 @@ MicroPythonで動作します.
 
 ![スクリーンショット1](/images/screenshot0_480.png)  
 
-[YouTube プレイ動画](https://www.youtube.com/watch?v=PG-gCMLcHIk)  
+[YouTube プレイ動画](https://youtu.be/d3WHsKkQOzY)  
 
 迫りくるパネルの隙間をひたすら埋めて消していくアクションゲームです.  
 
@@ -17,7 +17,8 @@ MicroPythonで動作します.
 
 ## 実行方法
 
-Thonny 等で全ての py ファイル（constsnts.py, main.py, ease.py, gamedata.py, picogamelib.py, picolcd114.py）を Pico に転送してください.  
+MicroPython 上で動作します.  
+Thonny 等で全ての py ファイル（main.py, ease.py, gamedata.py, picogamelib.py, picolcd114.py）を Pico に転送してください.  
 その後 Thonny から main.py を実行するか, 何か電源（モバイルバッテリーなど）に繋ぎ直してください.  
 （main.py が自動実行されます）  
 
@@ -88,17 +89,16 @@ LCD の表示はほぼメーカーのサンプル通りです.
 picogamelib.py は2Dアクション用のよくあるスプライト表示のライブラリになっています.  
 （python に慣れていないので行儀の悪い変なコードになっているかもしれません）  
 
-Pico は2コアですがこのゲームでは 1コア しか利用していません.  
-最初2コアで動かしていたのですが, メモリの余裕がなくなったので1コアにしました.  
-1コアでも 30FPS 出ているっぽいのでまあOKです.  
-将来的にはサウンド処理で使うかもしれません.  
-
-あと, 画面がすごく小さいので目が疲れます.  
-1キャラクタ20ピクセルと大きめに描画しているのですが, 老眼おじさんにはきついです.  
+Pico は比較的メモリが潤沢だと思いますが, 凝ったことをしようとするとやっぱり足りなくなります.  
+このくらいに落ち着きました.
 
 Pico と液晶モジュール, 合計2,000円くらいで昔のゲーム機のような環境が手に入ってしまいました.  
-
 暇つぶしのプログラミングには丁度いいかなと思います.  
+
+![スクリーンショット1](/images/img2.jpg)  
+
+![スクリーンショット1](/images/img1.jpg)  
+
 
 ***
 

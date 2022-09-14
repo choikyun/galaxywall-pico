@@ -31,6 +31,7 @@ LCD_BRIGHTNESS_MAX = const(5)
 # LCDの明るさ
 brightness_table = const((4095, 8191, 16383, 32767, 65535))
 
+
 class LCD(framebuf.FrameBuffer):
     """Pico LCD 1.14inch の画面表示制御"""
 
@@ -41,7 +42,13 @@ class LCD(framebuf.FrameBuffer):
         self.cs(1)
         # ボーレートは適当
         self.spi = SPI(
-            1, 100_000_000, polarity=0, phase=0, sck=Pin(_SCK), mosi=Pin(_MOSI), miso=None
+            1,
+            100_000_000,
+            polarity=0,
+            phase=0,
+            sck=Pin(_SCK),
+            mosi=Pin(_MOSI),
+            miso=None,
         )
         self.dc = Pin(_DC, Pin.OUT)
         self.dc(1)
